@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Seleção dos Elementos do DOM ---
     const roomNameElement = document.getElementById('room-name');
     const userNameElement = document.getElementById('user-username');
-    if (!roomNameElement || !userNameElement) { console.error('Elementos room-name ou user-username não encontrados'); return; }
+    if (!roomNameElement || !userNameElement) { return; }
     
     const roomName = JSON.parse(roomNameElement.textContent);
     const userName = JSON.parse(userNameElement.textContent);
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- INICIALIZAÇÃO DO WEBSOCKET E HANDLERS ---
     try {
         chatSocket = new WebSocket('ws://' + window.location.host + '/ws/chat/' + roomName + '/');
-    } catch (error) { console.error('Erro ao inicializar WebSocket:', error); addSystemMessage('Erro ao conectar ao chat.'); return; }
+    } catch (error) { addSystemMessage('Erro ao conectar ao chat.'); return; }
 
     const heartbeatInterval = setInterval(() => {
         if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
@@ -41,9 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 30000);
 
-    chatSocket.onopen = () => { console.log("Conexão WebSocket aberta!"); if (chatLog) { chatLog.scrollTop = chatLog.scrollHeight; } };
+    chatSocket.onopen = () => { if (chatLog) { chatLog.scrollTop = chatLog.scrollHeight; } };
     chatSocket.onclose = (e) => {
-        console.error('Chat socket fechado. Código:', e.code);
         let message = 'Você foi desconectado.';
         if (e.code === 4001) message = 'Você foi banido desta sala.';
         if (e.code === 4003) message = 'A sala atingiu o limite de usuários.';
@@ -52,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearInterval(heartbeatInterval);
         if (messageInput) { messageInput.disabled = true; messageInput.placeholder = 'Conexão perdida.'; }
     };
-    chatSocket.onerror = (error) => { console.error('Erro no WebSocket:', error); addSystemMessage('Erro na conexão. Tente recarregar a página.'); };
+    chatSocket.onerror = (error) => { addSystemMessage('Erro na conexão. Tente recarregar a página.'); };
     chatSocket.onmessage = function(e) {
         const data = JSON.parse(e.data);
         switch (data.type) {
@@ -85,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ALTERADO: Função updateUserList para incluir emblemas e botões de admin
     function updateUserList(users) {
-        if (!userListElement) { console.error('Elemento user-list não encontrado'); return; }
+        if (!userListElement) { return; }
         userListElement.innerHTML = '';
         users.forEach(user => {
             const userLi = document.createElement('li');
@@ -153,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateTypingIndicator() {
-        if (!typingIndicator) { console.error('Elemento typing-indicator não encontrado'); return; }
+        if (!typingIndicator) { return; }
         const users = Array.from(typingUsers);
         if (users.length === 0) { typingIndicator.textContent = '\u00A0'; return; }
         typingIndicator.textContent = users.length === 1 ? `${users[0]} está digitando...` : 'Várias pessoas estão digitando...';
