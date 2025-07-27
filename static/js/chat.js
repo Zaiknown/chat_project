@@ -180,10 +180,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
     
-// Seleção de botões para expulsar usuários
 document.querySelectorAll('.kick-user-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-        const username = btn.getAttribute('data-username'); // Assume que cada botão tem um atributo data-username
+        const username = btn.getAttribute('data-username');
         if (username) {
             chatSocket.send(JSON.stringify({
                 'admin_action': 'kick',
@@ -193,10 +192,9 @@ document.querySelectorAll('.kick-user-btn').forEach(btn => {
     });
 });
 
-// Seleção de botões para promover usuários
 document.querySelectorAll('.promote-user-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-        const username = btn.getAttribute('data-username'); // Assume que cada botão tem um atributo data-username
+        const username = btn.getAttribute('data-username');
         if (username) {
             chatSocket.send(JSON.stringify({
                 'admin_action': 'promote',
@@ -206,7 +204,6 @@ document.querySelectorAll('.promote-user-btn').forEach(btn => {
     });
 });
 
-// Botão para silenciar a sala
 const muteRoomBtn = document.getElementById('mute-room-btn');
 if (muteRoomBtn) {
     muteRoomBtn.addEventListener('click', () => {
@@ -214,7 +211,6 @@ if (muteRoomBtn) {
     });
 }
 
-// Botão para reativar a sala
 const unmuteRoomBtn = document.getElementById('unmute-room-btn');
 if (unmuteRoomBtn) {
     unmuteRoomBtn.addEventListener('click', () => {
@@ -222,12 +218,11 @@ if (unmuteRoomBtn) {
     });
 }
     
-    // ADICIONADO: Listener para os novos botões dinâmicos na lista de usuários
     if (userListElement) {
         userListElement.addEventListener('click', (e) => {
             const button = e.target.closest('.admin-btn');
             if (!button) return;
-            e.preventDefault(); // Impede navegação se o botão estiver num link <a>
+            e.preventDefault();
             const action = button.dataset.action;
             const target = button.dataset.target;
             if (confirm(`Tem certeza que deseja "${action}" o usuário "${target}"?`)) {
