@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Sala: {{ room_name }}{% endblock %}
+
+{% block content %}
+<div class="chat-page-container">
+    <div class="user-list-sidebar">
+        <h4>Usuários na Sala</h4>
+        <hr>
+        <ul id="user-list"></ul>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>Sala: <span style="color: var(--accent);">{{ room_name }}</span></h2>
+            {% if request.user == room.creator %}
+                <button id="mute-room-btn" class="btn">Silenciar Sala</button>
+                <button id="unmute-room-btn" class="btn">Reativar Sala</button>
+            {% endif %}
+            <a href="{% url 'index' %}" class="btn" style="padding: 6px 12px; font-size: 0.9rem;">
+                <i class="fas fa-arrow-left"></i> Voltar para Salas
+            </a>
+        </div>
+        
+        <div class="chat-log" id="chat-log">
+            {% for message in chat_messages %}
+                <div class="chat-message {% if message.is_sent_by_user %}sent{% else %}received{% endif %}">
+                    <img class="chat-avatar" src="{{ message.avatar_url }}" alt="{{ message.author_username }}">
+                    <div class="message-bubble">
+                        {% if not message.is_sent_by_user %}
+                            <div class="message-author">{{ message.author_username }}</div>
+                        {% endif %}
+                        <div class="message-content">{{ message.content }}</div>
+                        <div class="message-timestamp">{{ message.timestamp|date:"H:i" }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <div id="typing-indicator" class="typing-indicator"></div>
+
+        <div class="chat-input-area">
+            <input id="chat-message-input" type="text" class="form-control" placeholder="Digite sua mensagem...">
+            <button id="chat-message-submit" class="btn">Enviar</button>
+        </div>
+    </div>
+</div>
+
+{{ room_name|json_script:"room-name" }}
+{{ request.user.username|json_script:"user-username" }}
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/chat.js' %}"></script>
+{% endblock %}

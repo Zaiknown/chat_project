@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Sobre o Criador{% endblock %}
+
+{% block content %}
+<div class="form-card credits-card" style="max-width: 600px; margin: 2rem auto;">
+    
+    <img src="{% static 'images/matheuszaino.jpg' %}" alt="Avatar de Matheus Zaino" class="profile-avatar">
+    
+    <h1 style="font-weight: 700;">Matheus Zaino</h1>
+    <p style="color: var(--text-secondary); margin-top: -10px; font-weight: 300;">Desenvolvedor Full-Stack</p>
+    
+    <div style="margin-top: 1.5rem;">
+        <h3 style="font-weight: 600;">Sobre Este Projeto</h3>
+        <p style="color: var(--text-secondary);">
+            Este sistema de chat em tempo real foi desenvolvido como um projeto de portfólio para demonstrar habilidades avançadas em Django, Django Channels, WebSockets e desenvolvimento frontend com JavaScript puro.
+        </p>
+    </div>
+
+<div class="social-links">
+    <a href="https://www.linkedin.com/in/matheus-zaino-94947234b/" target="_blank" title="LinkedIn"><i class="fab fa-linkedin"></i></a>
+    <a href="https://github.com/Zaiknown" target="_blank" title="GitHub"><i class="fab fa-github"></i></a>
+    
+    <a href="https://mail.google.com/mail/?view=cm&fs=1&to=matheuszainopo@gmail.com&su=Proposta%20de%20Projeto%20/%20Contato&body=Olá,%20Matheus!%0A%0AEncontrei%20seu%20perfil%20através%20do%20seu%20projeto%20de%20chat%20e%20gostaria%20de%20conversar%20sobre...%0A%0AAtenciosamente,%0A[Seu Nome]" target="_blank" title="Enviar Email via Gmail"><i class="fas fa-envelope"></i></a>
+    
+    <a href="https://www.instagram.com/zaiknown.py/" target="_blank" title="Instagram"><i class="fab fa-instagram"></i></a>
+</div>
+
+</div>
+{% endblock %}

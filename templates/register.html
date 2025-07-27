@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Crie sua Conta{% endblock %}
+
+{% block content %}
+<div class="form-card" style="max-width: 500px; margin: 2rem auto;">
+    <h2 style="text-align: center; margin-bottom: 2rem;">Crie sua Conta</h2>
+
+    <form method="POST" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label class="form-label" for="{{ form.username.id_for_label }}">Nome de Usuário:</label>
+            {{ form.username }}
+            {% if form.username.errors %}
+                <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
+                    {% for error in form.username.errors %}<p>{{ error }}</p>{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="{{ form.email.id_for_label }}">Email:</label>
+            {{ form.email }}
+             {% if form.email.errors %}
+                <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
+                    {% for error in form.email.errors %}<p>{{ error }}</p>{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="{{ form.password1.id_for_label }}">Senha:</label>
+            {{ form.password1 }}
+             {% if form.password1.errors %}
+                <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
+                    {% for error in form.password1.errors %}<p>{{ error }}</p>{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="{{ form.password2.id_for_label }}">Confirmação de senha:</label>
+            {{ form.password2 }}
+             {% if form.password2.errors %}
+                <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
+                    {% for error in form.password2.errors %}<p>{{ error }}</p>{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <button type="submit" class="btn" style="margin-top: 1rem; width: 100%;">Cadastrar</button>
+    </form>
+    <p style="margin-top: 1rem; text-align: center;">
+        Já tem uma conta? <a href="{% url 'login' %}">Faça o login</a>
+    </p>
+</div>
+{% endblock %}
