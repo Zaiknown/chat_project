@@ -1,0 +1,56 @@
+# Arquivos de ambiente virtual Python
+venv/
+.venv/
+env/
+.env/
+
+# Arquivos de cache do Python
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Arquivos de banco de dados
+*.sqlite3
+db.sqlite3 # Confere, você tem um db.sqlite3 na raiz do projeto
+
+# Arquivos de mídia gerados por usuários
+/media/ # Confere, você tem uma pasta 'media' com 'avatars' dentro
+
+# Arquivos estáticos coletados (se você usar `collectstatic` para deploy)
+/static_collected/ # Adicione se for o caso, caso contrário, não é essencial
+
+# Arquivos de log
+*.log
+logs/
+
+# Arquivos de configuração sensíveis (se você tiver)
+.env
+*.ini
+*.json
+*.yml
+*.yaml
+# Se você tiver um arquivo para variáveis de ambiente, como .env, adicione-o aqui.
+# Exemplo:
+# .env
+
+# Arquivos específicos do Django
+*.pot
+*.mo
+local_settings.py # Se você separa configurações locais/de produção
+
+# Arquivos de IDEs (se usar)
+.idea/ # Para PyCharm
+.vscode/ # Confere, você está usando VS Code, então essa pasta pode ser gerada
+*.iml
+
+# Arquivos de sistema operacional
+.DS_Store # macOS
+Thumbs.db # Windows
+
+# Arquivos específicos do Redis/Memurai (se gerarem arquivos de persistência que não devem ser versionados)
+dump.rdb
+appendonly.aof
+
