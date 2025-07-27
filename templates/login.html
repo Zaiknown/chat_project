@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block title %}Entrar{% endblock %}
+
+{% block content %}
+<div class="form-card">
+    <h2>Entrar</h2>
+    {% if form.errors %}
+        <p style="color: red;">Usuário ou senha inválidos. Tente novamente.</p>
+    {% endif %}
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn" style="margin-top: 1rem;">Entrar</button>
+    </form>
+    <p style="margin-top: 1rem;">Não tem uma conta? <a href="{% url 'register' %}">Cadastre-se</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Salas de Chat{% endblock %}
+
+{% block content %}
+<div class="lobby-container">
+    <div class="room-list-card">
+        <div class="nav-tabs">
+            <button class="tab-link active" onclick="openTab(event, 'public-rooms')">Salas Públicas</button>
+            <button class="tab-link" onclick="openTab(event, 'private-chats')">Conversas</button>
+        </div>
+
+        <div id="public-rooms" class="tab-content" style="display: block;">
+            <ul id="room-list" style="list-style: none; padding: 0;">
+                {% for room in public_rooms %}
+                    <li style="margin-bottom: 0.75rem; display: flex; align-items: center; gap: 10px;">
+                        <a href="{% url 'chat:chat-room' room.name %}" class="room-link" style="flex-grow: 1;">
+                            <span>{{ room.name }}</span>
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 0.9rem; color: var(--text-secondary);"><i class="fas fa-user"></i> {{ room.user_count }}</span>
+                                {% if room.password %}<i class="fas fa-lock" style="color: var(--text-secondary);"></i>{% endif %}
+                            </span>
+                        </a>
+                        
+                        {% if request.user == room.creator %}
+                            <form action="{% url 'chat:delete-room' room.name %}" method="POST" onsubmit="return confirm('Tem certeza que deseja deletar esta sala?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn" style="background-color: var(--accent); padding: 10px 12px;" title="Deletar Sala">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        {% endif %}
+                    </li>
+                {% empty %}
+                    <li style="color: var(--text-secondary);">Nenhuma sala pública criada.</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div id="private-chats" class="tab-content" style="display: none;">
+            <ul id="dm-list" style="list-style: none; padding: 0;">
+                {% for profile in private_chats %}
+                    <li style="margin-bottom: 0.75rem;">
+                        {% with profile.user.username as other_username %}
+                            <a href="{% url 'chat:start-dm' other_username %}" class="room-link">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <img src="{{ profile.avatar.url }}" class="chat-avatar" style="width: 30px; height: 30px;">
+                                    <span>{{ other_username }}</span>
+                                </div>
+                            </a>
+                        {% endwith %}
+                    </li>
+                {% empty %}
+                    <li style="color: var(--text-secondary);">Nenhuma conversa privada iniciada.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="create-room-card">
+        <h2>Criar Nova Sala Pública</h2>
+        <form method="POST" novalidate>
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="form-group">
+                    {{ field.label_tag }}
+                    {{ field }}
+                </div>
+            {% endfor %}
+            {% if form.errors %}
+                {% for field in form %}{% for error in field.errors %}
+                    <div style="color: var(--accent); font-size: 0.9rem;">{{ error }}</div>
+                {% endfor %}{% endfor %}
+            {% endif %}
+            <button type="submit" class="btn" style="margin-top: 1rem; width: 100%;">Criar Sala</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tab-link");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const formFields = document.querySelectorAll('.create-room-card form input');
+            formFields.forEach(field => {
+                if (field.type !== 'checkbox' && field.type !== 'radio' && field.type !== 'file') {
+                    field.classList.add('form-control');
+                }
+            });
+        });
+    </script>
+{% endblock %}

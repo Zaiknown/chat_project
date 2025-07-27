@@ -1,0 +1,108 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Projeto de Chat{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    {% block extra_head %}{% endblock %}
+    {{ form.media.css }}
+</head>
+<body>
+<nav class="navbar">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'index' %}">Chat em Tempo Real</a>
+        
+        <ul class="navbar-nav main-nav">
+            <li class="nav-item"><a href="{% url 'index' %}" class="nav-link">Salas</a></li>
+            <li class="nav-item"><a href="{% url 'credits' %}" class="nav-link">Sobre o Criador</a></li>
+            {% if user.is_authenticated %}
+                <li class="nav-item"><a href="{% url 'profile' %}" class="nav-link">Meu Perfil</a></li>
+            {% endif %}
+        </ul>
+
+        <div class="user-info">
+            <button id="theme-toggle" class="btn-link" title="Mudar tema" style="font-size: 1.2rem;">
+                <i class="fas fa-moon"></i>
+            </button>
+            {% if user.is_authenticated %}
+                <form action="{% url 'logout' %}" method="POST" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-link">Sair</button>
+                </form>
+            {% else %}
+                <a href="{% url 'register' %}" class="btn-link">Cadastre-se</a>
+                <a href="{% url 'login' %}" class="btn">Entrar</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+    <main class="container">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message|safe }}</div>
+            {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+<footer class="main-footer">
+    <p>&copy; 2025 - Criado por <a href="{% url 'credits' %}">Matheus Zaino</a></p>
+</footer>
+
+    {{ form.media.js }}
+    
+    {% block extra_js %}{% endblock %}
+
+    <script src="{% static 'js/theme.js' %}" defer></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // --- LÓGICA PARA MENSAGENS DESAPARECEREM ---
+        const allAlerts = document.querySelectorAll('.alert');
+        allAlerts.forEach(function(alert) {
+            const timeout = alert.classList.contains('undo-alert') ? 7000 : 3000;
+            setTimeout(() => {
+                alert.classList.add('fade-out');
+                setTimeout(() => { alert.remove(); }, 500);
+            }, timeout);
+        });
+
+        // --- LÓGICA PARA ESTILIZAR FORMULÁRIOS DINAMICAMENTE ---
+        const formFields = document.querySelectorAll('.form-card form input, .form-card form textarea');
+        formFields.forEach(field => {
+            if (field.type !== 'checkbox' && field.type !== 'radio' && field.type !== 'file') {
+                field.classList.add('form-control');
+            }
+        });
+
+        // --- NOVA LÓGICA PARA O "OLHINHO" DA SENHA ---
+        const passwordFields = document.querySelectorAll('input[type="password"]');
+        passwordFields.forEach(field => {
+            // Cria o wrapper e o ícone
+            const wrapper = document.createElement('div');
+            wrapper.className = 'password-field-container';
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-eye password-toggle-icon';
+
+            // Envolve o campo de senha com o wrapper
+            field.parentNode.insertBefore(wrapper, field);
+            wrapper.appendChild(field);
+            wrapper.appendChild(icon);
+
+            // Adiciona o evento de clique ao ícone
+            icon.addEventListener('click', function() {
+                const type = field.getAttribute('type') === 'password' ? 'text' : 'password';
+                field.setAttribute('type', type);
+
+                // Troca o ícone de olho aberto para fechado
+                this.classList.toggle('fa-eye');
+                this.classList.toggle('fa-eye-slash');
+            });
+        });
+    });
+</script>
+</body>
+</html>

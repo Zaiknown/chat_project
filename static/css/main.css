@@ -1,0 +1,266 @@
+/* Importa a fonte do Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+/* --- TEMA CLARO (PADRÃO) --- */
+:root {
+    --bg-main: #f0f2f5;
+    --bg-card: #ffffff;
+    --primary-accent: #1877f2;
+    --text-main: #050505;
+    --text-secondary: #65676b;
+    --border-color: #ddd;
+    --sent-bubble-bg: #0084ff;
+    --sent-bubble-text: white;
+    --received-bubble-bg: #e4e6eb;
+}
+
+/* --- TEMA ESCURO --- */
+[data-theme="dark"] {
+    --bg-main: #18191a;
+    --bg-card: #242526;
+    --primary-accent: #2d88ff;
+    --text-main: #e4e6eb;
+    --text-secondary: #b0b3b8;
+    --border-color: #3e4042;
+    --sent-bubble-bg: #2d88ff;
+    --sent-bubble-text: white;
+    --received-bubble-bg: #3a3b3c;
+}
+
+/* --- Estilos Globais --- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { height: 100%; }
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    line-height: 1.6;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+.container { max-width: 1100px; width: 100%; margin: 2rem auto; padding: 0 20px; }
+
+/* --- Barra de Navegação e Rodapé --- */
+.navbar { background-color: var(--bg-card); padding: 1rem 0; border-bottom: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.05); grid-row: 1 / 2; }
+.navbar .container { display: flex; justify-content: space-between; align-items: center; }
+.navbar-brand { color: var(--text-main); text-decoration: none; font-size: 1.5rem; font-weight: 700; }
+.user-info { display: flex; align-items: center; gap: 1rem; }
+.btn { background-color: var(--primary-accent); color: white; padding: 8px 15px; border-radius: 6px; text-decoration: none; border: none; cursor: pointer; font-weight: 600; transition: background-color 0.3s ease; }
+.btn:hover { opacity: 0.9; }
+.btn-link { background: none; border: none; color: var(--primary-accent); cursor: pointer; text-decoration: none; font-size: 1em; font-weight: 600; }
+main.container { grid-row: 2 / 3; }
+.main-footer { grid-row: 3 / 4; text-align: center; padding: 2rem 0; color: var(--text-secondary); font-size: 0.9rem; }
+.main-footer a { color: var(--primary-accent); text-decoration: none; }
+
+/* --- Cards e Formulários --- */
+.form-card, .content-card, .room-list-card, .create-room-card {
+    background: var(--bg-card);
+    padding: 2.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+.form-group { margin-bottom: 1.5rem; }
+.form-label { display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-weight: 600; }
+.form-control { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem; font-family: 'Poppins', sans-serif; background-color: var(--bg-main); color: var(--text-main); }
+.form-control:focus { outline: none; border-color: var(--primary-accent); }
+
+/* --- Página de Perfil --- */
+.profile-container { display: flex; flex-wrap: wrap; gap: 2.5rem; align-items: flex-start; }
+.profile-sidebar { flex: 1; min-width: 200px; text-align: center; }
+.profile-avatar-container { position: relative; cursor: pointer; display: inline-block; border-radius: 50%; overflow: hidden; }
+.profile-avatar { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; display: block; border: 5px solid var(--bg-card); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.profile-avatar-container::after {
+    content: '\f030';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    display: flex; justify-content: center; align-items: center;
+    font-size: 2.5rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.profile-avatar-container:hover::after { opacity: 1; }
+.profile-sidebar h2 { font-size: 1.75rem; color: var(--text-main); word-wrap: break-word; margin-top: 1rem; }
+.profile-form-container { flex: 2; min-width: 300px; }
+.profile-form-container legend { font-size: 1.1rem; font-weight: 600; color: var(--text-main); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+.hidden-file-input { display: none; }
+input[type="file"] { color: var(--text-secondary); }
+input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #050505; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background-color 0.3s ease; margin-right: 1rem; }
+[data-theme="dark"] input[type="file"]::file-selector-button { background-color: #3a3b3c; color: #e4e6eb; }
+
+/* --- Alertas de Mensagem --- */
+.alert { padding: 1rem; margin-bottom: 1rem; border-radius: 5px; border: 1px solid transparent; transition: opacity 0.5s ease-out; }
+.alert.fade-out { opacity: 0; }
+.alert-success { background-color: #d4edda; color: #155724; }
+.alert-danger { background-color: #f8d7da; color: #721c24; }
+.alert-warning { background-color: #fff3cd; color: #856404; }
+
+/* --- Página de Chat --- */
+.chat-page-container { display: flex; gap: 1.5rem; }
+.user-list-sidebar { flex: 1; background-color: var(--bg-card); padding: 1.5rem; border-radius: 8px; height: 75vh; border: 1px solid var(--border-color); }
+#user-list { list-style: none; padding-left: 0; }
+#user-list li { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
+.status-indicator { width: 10px; height: 10px; border-radius: 50%; }
+.status-indicator.online { background-color: #31a24c; }
+.status-indicator.offline { background-color: #9ea2a8; }
+.user-status { color: var(--text-secondary); font-size: 0.75rem; margin-left: auto; }
+.chat-container { flex: 3; display: flex; flex-direction: column; height: 75vh; background-color: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); }
+.chat-log { flex-grow: 1; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; }
+.chat-message { display: flex; align-items: flex-end; margin-bottom: 1rem; gap: 10px; max-width: 75%; }
+.chat-avatar { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
+.message-bubble { padding: 0.7rem 1rem; border-radius: 18px; line-height: 1.4; }
+.message-author { font-weight: bold; font-size: 0.9rem; color: var(--text-main); margin-bottom: 0.2rem; }
+.message-content { word-wrap: break-word; }
+.message-timestamp { font-size: 0.75rem; color: var(--text-secondary); text-align: right; margin-top: 5px; display: block; }
+.chat-message.received { align-self: flex-start; }
+.chat-message.received .message-bubble { background-color: var(--received-bubble-bg); color: var(--text-main); }
+.chat-message.sent { align-self: flex-end; flex-direction: row-reverse; }
+.chat-message.sent .message-bubble { background-color: var(--sent-bubble-bg); color: var(--sent-bubble-text); }
+.system-message { text-align: center; color: var(--text-secondary); font-style: italic; font-size: 0.9rem; margin: 1rem 0; }
+.typing-indicator { height: 25px; padding: 0 1rem; color: var(--text-secondary); font-style: italic; font-size: 0.9rem; }
+.chat-input-area { display: flex; padding: 1rem; border-top: 1px solid var(--border-color); }
+.chat-input-area input { flex-grow: 1; margin-right: 1rem; }
+
+/* --- Estilos para o Lobby (index.html) --- */
+.lobby-container { display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; align-items: flex-start; }
+.room-list-card h4 { margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1rem; }
+#room-list { list-style: none; padding: 0; }
+#room-list li { margin-bottom: 0.75rem; }
+.room-link { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background-color: var(--bg-main); color: var(--text-main); text-decoration: none; border-radius: 6px; font-weight: 600; transition: background-color 0.3s ease, color 0.3s ease; }
+.room-link:hover { background-color: var(--primary-accent); color: white; }
+.room-link i { color: var(--text-secondary); }
+
+/* --- Estilos para o "Olhinho" da Senha --- */
+.password-field-container { position: relative; }
+.password-toggle-icon { position: absolute; top: 50%; right: 15px; transform: translateY(-50%); cursor: pointer; color: var(--text-secondary); }
+
+/* --- Estilos para o Card de Créditos --- */
+.credits-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centraliza os itens horizontalmente */
+    text-align: center; /* Centraliza o texto dentro dos itens */
+}
+
+.social-links {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    width: 100%;
+    display: flex; /* Para alinhar os ícones horizontalmente */
+    justify-content: center; /* Centraliza os ícones */
+    gap: 1.5rem; /* Espaçamento entre os ícones */
+}
+
+.social-links a {
+    color: var(--text-secondary);
+    font-size: 1.8rem;
+    transition: color 0.3s ease, transform 0.3s ease;
+    display: inline-block; /* Necessário para o transform funcionar */
+}
+
+.social-links a:hover {
+    color: var(--primary-accent);
+    transform: scale(1.2);
+}
+
+.main-nav {
+    list-style: none;
+    display: flex;
+    gap: 2rem; /* Espaçamento entre os links */
+    margin: 0;
+    padding: 0;
+}
+
+.nav-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.nav-link:hover {
+    color: var(--primary-accent);
+}
+
+.chat-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    /* NOVAS PROPRIEDADES PARA ALINHAMENTO */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.user-list-link {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    text-decoration: none;
+    color: var(--text-main);
+    padding: 5px;
+    border-radius: 5px;
+    transition: background-color 0.2s ease;
+}
+.user-list-link:hover {
+    background-color: var(--border-color);
+}
+
+/* Adicione no final da seção de CSS do chat */
+.message-author a {
+    color: inherit; /* Herda a cor do elemento pai (message-author) */
+    text-decoration: none;
+}
+.message-author a:hover {
+    text-decoration: underline;
+}
+
+/* --- Estilos para as Abas do Lobby --- */
+.nav-tabs {
+    display: flex;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 1rem;
+}
+.tab-link {
+    background-color: transparent;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #65676b;
+    border-bottom: 3px solid transparent;
+}
+.tab-link.active {
+    color: #1877f2;
+    border-bottom: 3px solid #1877f2;
+}
+.tab-content {
+    display: none; /* Escondido por padrão */
+}
+
+.user-list-link {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    text-decoration: none;
+    color: var(--text-main);
+    padding: 5px;
+    border-radius: 5px;
+    transition: background-color 0.2s ease;
+}
+.user-list-link:hover {
+    background-color: var(--border-color);
+}
+.message-author a {
+    color: inherit;
+    text-decoration: none;
+}
+.message-author a:hover {
+    text-decoration: underline;
+}
