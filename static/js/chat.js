@@ -1,14 +1,10 @@
-// chat.js
-
 document.addEventListener('DOMContentLoaded', () => {
-    // --- LÓGICA DE NOTIFICAÇÃO NO TÍTULO ---
     let isWindowActive = true;
     let unreadMessages = 0;
     const originalTitle = document.title;
     window.onfocus = () => { isWindowActive = true; unreadMessages = 0; document.title = originalTitle; };
     window.onblur = () => { isWindowActive = false; };
     
-    // --- Seleção dos Elementos do DOM ---
     const roomNameElement = document.getElementById('room-name');
     const userNameElement = document.getElementById('user-username');
     if (!roomNameElement || !userNameElement) { return; }
@@ -21,7 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageSubmit = document.querySelector('#chat-message-submit');
     const typingIndicator = document.querySelector('#typing-indicator');
 
-    // --- VARIÁVEIS DE ESTADO ---
     let typingTimer;
     const TYPING_TIMER_LENGTH = 2000;
     let isTyping = false;
@@ -30,7 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentUserIsAdmin = false;
     let chatSocket;
 
-    // --- INICIALIZAÇÃO DO WEBSOCKET E HANDLERS ---
     try {
         chatSocket = new WebSocket('ws://' + window.location.host + '/ws/chat/' + roomName + '/');
     } catch (error) { addSystemMessage('Erro ao conectar ao chat.'); return; }
@@ -69,12 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'system_message':
                 if (!isWindowActive) { unreadMessages++; document.title = `(${unreadMessages}) ${originalTitle}`; }
                 addSystemMessage(data.message); break;
-            case 'heartbeat': break; // Ignora o pong do heartbeat no log
+            case 'heartbeat': break;
             default: console.warn('Tipo de mensagem desconhecido:', data.type);
         }
     };
     
-    // --- FUNÇÕES DE LÓGICA E UI ---
     function updateInputState() {
         if (!messageInput) return;
         const canSpeak = !isRoomMuted || currentUserIsAdmin;
@@ -82,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
         messageInput.placeholder = canSpeak ? 'Digite sua mensagem...' : 'Sala silenciada.';
     }
 
-    // ALTERADO: Função updateUserList para incluir emblemas e botões de admin
     function updateUserList(users) {
         if (!userListElement) { return; }
         userListElement.innerHTML = '';
@@ -158,7 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
         typingIndicator.textContent = users.length === 1 ? `${users[0]} está digitando...` : 'Várias pessoas estão digitando...';
     }
 
-    // --- EVENT LISTENERS ---
     if (messageInput) {
         messageInput.focus();
         messageInput.onkeyup = (e) => { if (e.key === 'Enter' && !messageInput.disabled) { messageSubmit.click(); } };
@@ -189,13 +180,47 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
     
-    // SEUS LISTENERS ORIGINAIS (MANTIDOS)
-    document.querySelectorAll('.kick-user-btn').forEach(btn => { /* ... sua lógica original ... */ });
-    document.querySelectorAll('.promote-user-btn').forEach(btn => { /* ... sua lógica original ... */ });
-    const muteRoomBtn = document.getElementById('mute-room-btn');
-    if (muteRoomBtn) { muteRoomBtn.addEventListener('click', () => chatSocket.send(JSON.stringify({ 'admin_action': 'mute' }))); }
-    const unmuteRoomBtn = document.getElementById('unmute-room-btn');
-    if (unmuteRoomBtn) { unmuteRoomBtn.addEventListener('click', () => chatSocket.send(JSON.stringify({ 'admin_action': 'unmute' }))); }
+// Seleção de botões para expulsar usuários
+document.querySelectorAll('.kick-user-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const username = btn.getAttribute('data-username'); // Assume que cada botão tem um atributo data-username
+        if (username) {
+            chatSocket.send(JSON.stringify({
+                'admin_action': 'kick',
+                'username': username
+            }));
+        }
+    });
+});
+
+// Seleção de botões para promover usuários
+document.querySelectorAll('.promote-user-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const username = btn.getAttribute('data-username'); // Assume que cada botão tem um atributo data-username
+        if (username) {
+            chatSocket.send(JSON.stringify({
+                'admin_action': 'promote',
+                'username': username
+            }));
+        }
+    });
+});
+
+// Botão para silenciar a sala
+const muteRoomBtn = document.getElementById('mute-room-btn');
+if (muteRoomBtn) {
+    muteRoomBtn.addEventListener('click', () => {
+        chatSocket.send(JSON.stringify({ 'admin_action': 'mute' }));
+    });
+}
+
+// Botão para reativar a sala
+const unmuteRoomBtn = document.getElementById('unmute-room-btn');
+if (unmuteRoomBtn) {
+    unmuteRoomBtn.addEventListener('click', () => {
+        chatSocket.send(JSON.stringify({ 'admin_action': 'unmute' }));
+    });
+}
     
     // ADICIONADO: Listener para os novos botões dinâmicos na lista de usuários
     if (userListElement) {
@@ -213,7 +238,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('beforeunload', () => { if (chatSocket && chatSocket.readyState === WebSocket.OPEN) chatSocket.send(JSON.stringify({'heartbeat': true})); });
     
-    // ADICIONADO: Estilos para os novos emblemas e botões
     const style = document.createElement('style');
     style.innerHTML = `
         .user-list-link { display: flex; align-items: center; justify-content: space-between; text-decoration: none; color: inherit; padding: 5px; border-radius: 5px; }
