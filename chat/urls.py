@@ -9,5 +9,6 @@ urlpatterns = [
     # ADICIONE ESTA LINHA
     path('<str:room_name>/delete/', views.delete_room_view, name='delete-room'),
 
+    path('heartbeat/', views.heartbeat_view, name='heartbeat'),
     path('<str:room_name>/', views.chat_room_view, name='chat-room'),
 ]

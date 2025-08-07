@@ -1,14 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Variáveis de estado
     let isWindowActive = true;
     let unreadMessages = 0;
     const originalTitle = document.title;
     window.onfocus = () => { isWindowActive = true; unreadMessages = 0; document.title = originalTitle; };
     window.onblur = () => { isWindowActive = false; };
-    
+
+    // Elementos do DOM
     const roomNameElement = document.getElementById('room-name');
     const userNameElement = document.getElementById('user-username');
-    if (!roomNameElement || !userNameElement) { return; }
-    
+    if (!roomNameElement || !userNameElement) return;
+
     const roomName = JSON.parse(roomNameElement.textContent);
     const userName = JSON.parse(userNameElement.textContent);
     const chatLog = document.querySelector('#chat-log');
@@ -17,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageSubmit = document.querySelector('#chat-message-submit');
     const typingIndicator = document.querySelector('#typing-indicator');
 
+    // Estado do WebSocket e do Chat
     let typingTimer;
     const TYPING_TIMER_LENGTH = 2000;
     let isTyping = false;
@@ -25,9 +28,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentUserIsAdmin = false;
     let chatSocket;
 
+    // --- Conexão WebSocket ---
     try {
-        chatSocket = new WebSocket('ws://' + window.location.host + '/ws/chat/' + roomName + '/');
-    } catch (error) { addSystemMessage('Erro ao conectar ao chat.'); return; }
+        chatSocket = new WebSocket(`ws://${window.location.host}/ws/chat/${roomName}/`);
+    } catch (error) {
+        addSystemMessage('Erro ao conectar ao chat.');
+        return;
+    }
 
     const heartbeatInterval = setInterval(() => {
         if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
@@ -35,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 30000);
 
-    chatSocket.onopen = () => { if (chatLog) { chatLog.scrollTop = chatLog.scrollHeight; } };
+    chatSocket.onopen = () => { if (chatLog) chatLog.scrollTop = chatLog.scrollHeight; };
     chatSocket.onclose = (e) => {
         let message = 'Você foi desconectado.';
         if (e.code === 4001) message = 'Você foi banido desta sala.';
@@ -43,31 +50,211 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.code === 4004) message = 'Sala não encontrada ou não existe.';
         addSystemMessage(message);
         clearInterval(heartbeatInterval);
-        if (messageInput) { messageInput.disabled = true; messageInput.placeholder = 'Conexão perdida.'; }
+        if (messageInput) {
+            messageInput.disabled = true;
+            messageInput.placeholder = 'Conexão perdida.';
+        }
     };
-    chatSocket.onerror = (error) => { addSystemMessage('Erro na conexão. Tente recarregar a página.'); };
+    chatSocket.onerror = () => addSystemMessage('Erro na conexão. Tente recarregar a página.');
+
+    // --- Manipulador de Mensagens ---
     chatSocket.onmessage = function(e) {
         const data = JSON.parse(e.data);
         switch (data.type) {
             case 'room_state_update':
-                isRoomMuted = data.is_muted; currentUserIsAdmin = data.is_admin; updateInputState(); break;
+                isRoomMuted = data.is_muted;
+                currentUserIsAdmin = data.is_admin;
+                updateInputState();
+                updateHeaderAdminButtons();
+                break;
             case 'mute_status_update':
-                isRoomMuted = data.is_muted; updateInputState(); break;
+                isRoomMuted = data.is_muted;
+                addSystemMessage(data.message);
+                updateInputState();
+                break;
+            case 'admin_status_update':
+                currentUserIsAdmin = data.is_admin;
+                updateHeaderAdminButtons();
+                break;
             case 'chat_message':
-                if (!isWindowActive && data.username !== userName) { unreadMessages++; document.title = `(${unreadMessages}) ${originalTitle}`; }
-                typingUsers.delete(data.username); updateTypingIndicator(); addChatMessage(data); break;
+                if (!isWindowActive && data.username !== userName) {
+                    unreadMessages++;
+                    document.title = `(${unreadMessages}) ${originalTitle}`;
+                }
+                typingUsers.delete(data.username);
+                updateTypingIndicator();
+                addChatMessage(data);
+                break;
             case 'typing_signal':
-                handleTypingSignal(data); break;
+                handleTypingSignal(data);
+                break;
             case 'user_list_update':
-                updateUserList(data.users); break;
+                updateUserList(data.users);
+                break;
+            case 'user_status_update':
+                updateUserStatus(data);
+                break;
             case 'system_message':
-                if (!isWindowActive) { unreadMessages++; document.title = `(${unreadMessages}) ${originalTitle}`; }
-                addSystemMessage(data.message); break;
-            case 'heartbeat': break;
-            default: console.warn('Tipo de mensagem desconhecido:', data.type);
+                if (!isWindowActive) {
+                    unreadMessages++;
+                    document.title = `(${unreadMessages}) ${originalTitle}`;
+                }
+                addSystemMessage(data.message);
+                break;
+            case 'heartbeat':
+                break; // Apenas para manter a conexão viva
+            default:
+                console.warn('Tipo de mensagem desconhecido:', data.type);
         }
     };
-    
+
+    function updateUserStatus(data) {
+        const isDM = document.querySelector('.dm-container') !== null;
+        let statusElement;
+
+        if (isDM) {
+            const otherUsername = document.querySelector('.dm-username').textContent;
+            if (data.username === otherUsername) {
+                statusElement = document.getElementById('user-last-seen');
+            }
+        } else {
+            const userLi = userListElement.querySelector(`li[data-username="${data.username}"]`);
+            if (userLi) {
+                statusElement = userLi.querySelector('.user-status');
+            }
+        }
+
+        if (statusElement) {
+            if (data.is_online) {
+                statusElement.textContent = 'Online';
+                statusElement.classList.add('online'); 
+            } else {
+                statusElement.textContent = `Visto ${data.last_seen}`;
+                statusElement.classList.remove('online');
+            }
+        }
+    }
+
+    // --- Funções de Atualização da UI ---
+
+    function updateHeaderAdminButtons() {
+        const roomActionsContainer = document.getElementById('room-actions-container');
+        if (!roomActionsContainer) return;
+
+        roomActionsContainer.innerHTML = ''; // Limpa ações antigas
+
+        if (currentUserIsAdmin) {
+            const settingsBtn = document.createElement('button');
+            settingsBtn.className = 'room-settings-btn';
+            settingsBtn.innerHTML = '⚙️'; // Ícone de engrenagem
+            settingsBtn.title = 'Configurações da Sala';
+
+            const dropdown = document.createElement('div');
+            dropdown.className = 'room-actions-dropdown';
+            dropdown.innerHTML = `
+                <a href="#" id="mute-room-btn">Silenciar Sala</a>
+                <a href="#" id="unmute-room-btn">Reativar Sala</a>
+            `;
+
+            roomActionsContainer.appendChild(settingsBtn);
+            roomActionsContainer.appendChild(dropdown);
+
+            settingsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdown.classList.toggle('visible');
+            });
+
+            document.getElementById('mute-room-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                chatSocket.send(JSON.stringify({ 'admin_action': 'mute' }));
+                dropdown.classList.remove('visible');
+            });
+
+            document.getElementById('unmute-room-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                chatSocket.send(JSON.stringify({ 'admin_action': 'unmute' }));
+                dropdown.classList.remove('visible');
+            });
+        }
+    }
+
+    function updateUserList(users) {
+        const isDM = document.querySelector('.dm-container') !== null;
+        if (isDM) {
+            const otherUser = users.find(u => u.username !== userName);
+            if (otherUser) {
+                const lastSeenElement = document.getElementById('user-last-seen');
+                if (lastSeenElement) {
+                    lastSeenElement.textContent = otherUser.is_online ? 'Online' : `Visto ${otherUser.last_seen}`;
+                }
+            }
+        } else {
+            if (!userListElement) return;
+            const openMenuUser = userListElement.querySelector('.menu-open')?.closest('li')?.dataset.username;
+            userListElement.innerHTML = '';
+
+            users.forEach(user => {
+                const userLi = document.createElement('li');
+                userLi.setAttribute('data-username', user.username);
+
+                let adminIndicator = '';
+                if (user.is_creator) {
+                    adminIndicator = '<span class="admin-badge creator-badge" title="Criador da Sala">👑</span>';
+                } else if (user.is_admin) {
+                    adminIndicator = '<span class="admin-badge" title="Administrador">🛡️</span>';
+                }
+
+                let actionsHtml = '';
+                if (user.username !== userName) {
+                    const messageAction = `<a href="/chat/dm/${user.username}/" class="message-action-btn">Mensagem</a>`;
+                    let adminActions = '';
+
+                    if (currentUserIsAdmin && !user.is_creator) {
+                        const promoteAction = user.is_admin
+                            ? `<a href="#" class="admin-action-btn" data-action="demote" data-target="${user.username}">Rebaixar</a>`
+                            : `<a href="#" class="admin-action-btn" data-action="promote" data-target="${user.username}">Promover</a>`;
+                        const kickAction = `<a href="#" class="admin-action-btn" data-action="kick" data-target="${user.username}">Expulsar</a>`;
+                        adminActions = `${promoteAction}${kickAction}`;
+                    }
+
+                    actionsHtml = `
+                        <div class="user-actions-container">
+                            <button class="more-options-btn" data-target="${user.username}">...</button>
+                            <div class="actions-dropdown">
+                                ${messageAction}
+                                ${adminActions}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                const userContainer = document.createElement('div');
+                userContainer.className = 'user-list-link';
+
+                userContainer.innerHTML = `
+                    <div class="user-info">
+                        <img src="${user.avatar_url}" class="chat-avatar">
+                        <div>
+                            <span>${user.username} ${adminIndicator}</span>
+                            <small class="user-status">${user.is_online ? 'Online' : 'Visto ' + user.last_seen}</small>
+                        </div>
+                    </div>
+                    ${actionsHtml}
+                `;
+                userLi.appendChild(userContainer);
+                userListElement.appendChild(userLi);
+            });
+
+            if (openMenuUser) {
+                const userLi = userListElement.querySelector(`li[data-username="${openMenuUser}"]`);
+                if (userLi) {
+                    userLi.querySelector('.actions-dropdown')?.classList.add('visible');
+                    userLi.querySelector('.user-list-link')?.classList.add('menu-open');
+                }
+            }
+        }
+    }
+
     function updateInputState() {
         if (!messageInput) return;
         const canSpeak = !isRoomMuted || currentUserIsAdmin;
@@ -75,48 +262,11 @@ document.addEventListener('DOMContentLoaded', () => {
         messageInput.placeholder = canSpeak ? 'Digite sua mensagem...' : 'Sala silenciada.';
     }
 
-    function updateUserList(users) {
-        if (!userListElement) { return; }
-        userListElement.innerHTML = '';
-        users.forEach(user => {
-            const userLi = document.createElement('li');
-            userLi.setAttribute('data-username', user.username);
-            
-            let adminIndicator = '';
-            if (user.is_creator) { adminIndicator = '<span class="admin-badge creator-badge" title="Criador da Sala">👑</span>'; }
-            else if (user.is_admin) { adminIndicator = '<span class="admin-badge" title="Administrador">🛡️</span>'; }
-
-            let adminButtons = '';
-            if (currentUserIsAdmin && user.username !== userName && !user.is_creator) {
-                adminButtons += '<div class="admin-actions">';
-                if (user.is_admin) {
-                    adminButtons += `<button class="admin-btn demote-btn" data-action="demote" data-target="${user.username}" title="Rebaixar Admin">👎</button>`;
-                } else {
-                    adminButtons += `<button class="admin-btn promote-btn" data-action="promote" data-target="${user.username}" title="Promover a Admin">👍</button>`;
-                }
-                adminButtons += `<button class="admin-btn kick-btn" data-action="kick" data-target="${user.username}" title="Expulsar da Sala">❌</button>`;
-                adminButtons += '</div>';
-            }
-            
-            const userContainer = document.createElement(user.username === userName ? 'div' : 'a');
-            userContainer.className = 'user-list-link';
-            if (user.username !== userName) userContainer.href = `/chat/dm/${user.username}/`;
-            userContainer.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <img src="${user.avatar_url}" class="chat-avatar" style="width: 25px; height: 25px; border-radius: 50%;">
-                    <div>
-                        <span>${user.username} ${adminIndicator}</span>
-                        <small class="user-status" style="display: block; font-size: 0.75rem;">${user.is_online ? 'Online' : 'Visto ' + user.last_seen}</small>
-                    </div>
-                </div>
-                ${adminButtons}`;
-            userLi.appendChild(userContainer);
-            userListElement.appendChild(userLi);
-        });
-    }
-
     function addChatMessage(data) {
-        if (data.username === 'Sistema') { addSystemMessage(data.message); return; }
+        if (data.username === 'Sistema') {
+            addSystemMessage(data.message);
+            return;
+        }
         const messageContainer = document.createElement('div');
         messageContainer.classList.add('chat-message', data.username === userName ? 'sent' : 'received');
         const authorHtml = data.username !== userName ? `<div class="message-author"><a href="/chat/dm/${data.username}/">${data.username}</a></div>` : '';
@@ -127,16 +277,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="message-content">${data.message}</div>
                 <div class="message-timestamp">${data.timestamp}</div>
             </div>`;
-        if (chatLog) { chatLog.appendChild(messageContainer); chatLog.scrollTop = chatLog.scrollHeight; }
+        if (chatLog) {
+            chatLog.appendChild(messageContainer);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
     }
-    
+
     function addSystemMessage(message) {
+        const joinMessage = `${userName} entrou na sala.`;
+        if (message === joinMessage) {
+            return; // Não exibe a mensagem se for o próprio usuário entrando
+        }
+
         const messageElement = document.createElement('div');
         messageElement.classList.add('system-message');
         messageElement.innerText = message;
-        if (chatLog) { chatLog.appendChild(messageElement); chatLog.scrollTop = chatLog.scrollHeight; }
+        if (chatLog) {
+            chatLog.appendChild(messageElement);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
     }
-    
+
     function handleTypingSignal(data) {
         if (data.username === userName) return;
         data.is_typing ? typingUsers.add(data.username) : typingUsers.delete(data.username);
@@ -144,24 +305,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateTypingIndicator() {
-        if (!typingIndicator) { return; }
+        if (!typingIndicator) return;
         const users = Array.from(typingUsers);
-        if (users.length === 0) { typingIndicator.textContent = '\u00A0'; return; }
+        if (users.length === 0) {
+            typingIndicator.textContent = ' '; // Non-breaking space
+            return;
+        }
         typingIndicator.textContent = users.length === 1 ? `${users[0]} está digitando...` : 'Várias pessoas estão digitando...';
+    }
+
+    function showConfirmationModal(message, onConfirm) {
+        document.querySelectorAll('.actions-dropdown.visible, .room-actions-dropdown.visible').forEach(d => d.classList.remove('visible'));
+        document.querySelectorAll('.user-list-link.menu-open').forEach(link => link.classList.remove('menu-open'));
+
+        const existingModal = document.getElementById('confirmation-modal');
+        if (existingModal) existingModal.remove();
+
+        const modalOverlay = document.createElement('div');
+        modalOverlay.id = 'confirmation-modal';
+        modalOverlay.innerHTML = `
+            <div class="modal-content">
+                <p>${message}</p>
+                <div class="modal-buttons">
+                    <button id="confirm-btn" class="btn">Confirmar</button>
+                    <button id="cancel-btn" class="btn btn-secondary">Cancelar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modalOverlay);
+
+        const closeModal = () => modalOverlay.remove();
+        modalOverlay.querySelector('#confirm-btn').onclick = () => { onConfirm(); closeModal(); };
+        modalOverlay.querySelector('#cancel-btn').onclick = closeModal;
+        modalOverlay.onclick = (e) => { if (e.target === modalOverlay) closeModal(); };
     }
 
     if (messageInput) {
         messageInput.focus();
-        messageInput.onkeyup = (e) => { if (e.key === 'Enter' && !messageInput.disabled) { messageSubmit.click(); } };
+        messageInput.onkeyup = (e) => { if (e.key === 'Enter' && !messageInput.disabled) messageSubmit.click(); };
         messageInput.addEventListener('input', () => {
             if (!isTyping) {
                 isTyping = true;
-                if (chatSocket.readyState === WebSocket.OPEN) chatSocket.send(JSON.stringify({'is_typing': true}));
+                if (chatSocket.readyState === WebSocket.OPEN) chatSocket.send(JSON.stringify({ 'is_typing': true }));
             }
             clearTimeout(typingTimer);
             typingTimer = setTimeout(() => {
                 isTyping = false;
-                if (chatSocket.readyState === WebSocket.OPEN) chatSocket.send(JSON.stringify({'is_typing': false}));
+                if (chatSocket.readyState === WebSocket.OPEN) chatSocket.send(JSON.stringify({ 'is_typing': false }));
             }, TYPING_TIMER_LENGTH);
         });
     }
@@ -170,77 +360,136 @@ document.addEventListener('DOMContentLoaded', () => {
         messageSubmit.onclick = () => {
             const message = messageInput ? messageInput.value.trim() : '';
             if (message !== '') {
-                clearTimeout(typingTimer); isTyping = false;
+                clearTimeout(typingTimer);
+                isTyping = false;
                 if (chatSocket.readyState === WebSocket.OPEN) {
-                    chatSocket.send(JSON.stringify({'is_typing': false}));
-                    chatSocket.send(JSON.stringify({'message': message}));
+                    chatSocket.send(JSON.stringify({ 'is_typing': false }));
+                    chatSocket.send(JSON.stringify({ 'message': message }));
                     if (messageInput) messageInput.value = '';
                 }
             }
         };
     }
-    
-document.querySelectorAll('.kick-user-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const username = btn.getAttribute('data-username');
-        if (username) {
-            chatSocket.send(JSON.stringify({
-                'admin_action': 'kick',
-                'username': username
-            }));
-        }
-    });
-});
 
-document.querySelectorAll('.promote-user-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const username = btn.getAttribute('data-username');
-        if (username) {
-            chatSocket.send(JSON.stringify({
-                'admin_action': 'promote',
-                'username': username
-            }));
-        }
-    });
-});
-
-const muteRoomBtn = document.getElementById('mute-room-btn');
-if (muteRoomBtn) {
-    muteRoomBtn.addEventListener('click', () => {
-        chatSocket.send(JSON.stringify({ 'admin_action': 'mute' }));
-    });
-}
-
-const unmuteRoomBtn = document.getElementById('unmute-room-btn');
-if (unmuteRoomBtn) {
-    unmuteRoomBtn.addEventListener('click', () => {
-        chatSocket.send(JSON.stringify({ 'admin_action': 'unmute' }));
-    });
-}
-    
     if (userListElement) {
         userListElement.addEventListener('click', (e) => {
-            const button = e.target.closest('.admin-btn');
-            if (!button) return;
-            e.preventDefault();
-            const action = button.dataset.action;
-            const target = button.dataset.target;
-            if (confirm(`Tem certeza que deseja "${action}" o usuário "${target}"?`)) {
-                chatSocket.send(JSON.stringify({'admin_action': action, 'target': target}));
+            const moreOptionsBtn = e.target.closest('.more-options-btn');
+            const actionBtn = e.target.closest('.admin-action-btn');
+            const messageBtn = e.target.closest('.message-action-btn');
+
+            if (moreOptionsBtn) {
+                e.preventDefault();
+                const dropdown = moreOptionsBtn.nextElementSibling;
+                const userLink = moreOptionsBtn.closest('.user-list-link');
+                const isVisible = dropdown.classList.contains('visible');
+
+                document.querySelectorAll('.actions-dropdown.visible').forEach(d => d.classList.remove('visible'));
+                document.querySelectorAll('.user-list-link.menu-open').forEach(link => link.classList.remove('menu-open'));
+
+                if (!isVisible) {
+                    dropdown.classList.add('visible');
+                    userLink.classList.add('menu-open');
+                }
+
+            } else if (actionBtn) {
+                e.preventDefault();
+                const { action, target } = actionBtn.dataset;
+                const actionText = actionBtn.textContent;
+                showConfirmationModal(`Tem certeza que deseja "${actionText}" o usuário "${target}"?`, () => {
+                    chatSocket.send(JSON.stringify({ 'admin_action': action, 'target': target }));
+                });
+
+            } else if (messageBtn) {
+                // A ação de mensagem agora é um link direto, então o comportamento padrão do navegador (navegar para o href) é suficiente.
+                // Nenhuma ação extra de JavaScript é necessária aqui.
             }
         });
     }
 
-    window.addEventListener('beforeunload', () => { if (chatSocket && chatSocket.readyState === WebSocket.OPEN) chatSocket.send(JSON.stringify({'heartbeat': true})); });
-    
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.user-actions-container')) {
+            document.querySelectorAll('.actions-dropdown.visible').forEach(d => d.classList.remove('visible'));
+            document.querySelectorAll('.user-list-link.menu-open').forEach(link => link.classList.remove('menu-open'));
+        }
+        if (!e.target.closest('#room-actions-container')) {
+            document.querySelectorAll('.room-actions-dropdown.visible').forEach(d => d.classList.remove('visible'));
+        }
+    });
+
+    window.addEventListener('beforeunload', () => {
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(JSON.stringify({ 'heartbeat': true }));
+        }
+    });
+
     const style = document.createElement('style');
     style.innerHTML = `
-        .user-list-link { display: flex; align-items: center; justify-content: space-between; text-decoration: none; color: inherit; padding: 5px; border-radius: 5px; }
-        .user-list-link:hover { background-color: #f0f0f0; }
+        #confirmation-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 2000;
+        }
+        #confirmation-modal .modal-content {
+            background-color: var(--bg-card, #fff); color: var(--text-main, #000);
+            padding: 25px; border-radius: 8px; text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        #confirmation-modal p { margin-bottom: 20px; font-size: 1.1rem; }
+        #confirmation-modal .modal-buttons button { margin: 0 5px; }
+        #confirmation-modal .btn-secondary {
+            background-color: #6c757d;
+            border-color: #6c757d;
+        }
+        #confirmation-modal .btn-secondary:hover {
+            background-color: #5a6268;
+            border-color: #545b62;
+        }
+
+        .user-list-link {
+            display: flex; align-items: center; justify-content: space-between;
+            text-decoration: none; color: inherit; padding: 5px; border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        .user-list-link:hover {
+            background-color: var(--hover-color);
+        }
+        .user-list-link.menu-open, .user-list-link.menu-open:hover {
+            background-color: var(--hover-color, #e9ecef);
+        }
+        .user-list-link .user-info { display: flex; align-items: center; gap: 8px; }
+        .user-list-link .chat-avatar { width: 25px; height: 25px; border-radius: 50%; }
+        .user-list-link .user-status { display: block; font-size: 0.75rem; color: #888; }
         .admin-badge { font-size: 0.8em; margin-left: 4px; cursor: help; }
-        .admin-actions { display: flex; gap: 5px; }
-        .admin-btn { background: none; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; padding: 2px 5px; font-size: 0.8rem; }
-        .admin-btn:hover { background: #e9e9e9; border-color: #999; }
+
+        .user-actions-container { position: relative; }
+        .more-options-btn {
+            background: none; border: none; font-size: 1.2rem; line-height: 1;
+            cursor: pointer; padding: 0 8px; border-radius: 4px; color: var(--text-color);
+        }
+        .more-options-btn:hover { background-color: var(--hover-color); }
+        
+        .actions-dropdown, .room-actions-dropdown {
+            display: none; position: absolute; right: 0; top: 100%;
+            background-color: var(--bg-card, #fff);
+            border: 1px solid var(--border-color, #ccc);
+            border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            z-index: 1001;
+            min-width: 120px;
+        }
+        .actions-dropdown.visible, .room-actions-dropdown.visible { display: block; }
+        .actions-dropdown a, .room-actions-dropdown a {
+            display: block; padding: 8px 12px; color: var(--text-main);
+            text-decoration: none; font-size: 0.9rem;
+        }
+        .actions-dropdown a:hover, .room-actions-dropdown a:hover { background-color: var(--primary-accent); color: white; }
+        .message-action-btn:hover { background-color: var(--primary-accent); color: white; }
+
+        #room-actions-container { position: relative; }
+        .room-settings-btn {
+            background: none; border: none; font-size: 1.5rem; cursor: pointer;
+            color: var(--text-main);
+        }
     `;
     document.head.appendChild(style);
 });

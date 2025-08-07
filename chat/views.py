@@ -115,12 +115,16 @@ def chat_room_view(request, room_name):
             'is_sent_by_user': message.author == request.user,
         })
     
+    display_name = "Chat Privado" if is_dm else room_name
+
     context = {
         'room_name': room_name,
+        'display_name': display_name,
         'chat_messages': messages_list,
         'is_dm': is_dm,
         'other_user_profile': other_user_profile,
-        'room': room, 
+        'room': room,
+        'is_admin': room.creator == request.user or request.user in room.admins.all() if room else False
     }
     return render(request, 'chat_room.html', context)
 
@@ -195,13 +199,19 @@ def delete_room_view(request, room_name):
         return redirect('index')
 
     if request.user == room.creator:
+        # Exclui todas as mensagens de chat associadas a esta sala
+        ChatMessage.objects.filter(room_name=room.name).delete()
         room.delete()
-        messages.success(request, f"A sala '{room_name}' foi deletada com sucesso.")
+        messages.success(request, f"A sala '{room.name}' foi deletada com sucesso.")
     else:
         messages.error(request, "Você não tem permissão para deletar esta sala.")
     return redirect('index')
 
 @login_required
 def heartbeat_view(request):
-    Profile.objects.filter(user=request.user).update(last_seen=timezone.now())
-    return JsonResponse({'status': 'ok'})
+    if request.method == 'POST':
+        profile = Profile.objects.get(user=request.user)
+        profile.last_seen = timezone.now()
+        profile.save()
+        return JsonResponse({'status': 'ok'})
+    return JsonResponse({'status': 'bad request'}, status=400)

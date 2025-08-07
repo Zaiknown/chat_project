@@ -57,6 +57,22 @@
     {% block extra_js %}{% endblock %}
 
     <script src="{% static 'js/theme.js' %}" defer></script>
+    {% if user.is_authenticated %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            setInterval(function() {
+                fetch("{% url 'chat:heartbeat' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+            }, 30000); // 30 segundos
+        });
+    </script>
+    {% endif %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
 

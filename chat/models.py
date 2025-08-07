@@ -7,6 +7,7 @@ class ChatMessage(models.Model):
     room_name = models.CharField(max_length=255)
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
+    deleted_by = models.ManyToManyField(User, related_name='deleted_messages', blank=True)
 
     def __str__(self):
         return f'Message from {self.author.username} in {self.room_name}'
