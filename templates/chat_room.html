@@ -1,25 +1,34 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Sala: {{ room_name }}{% endblock %}
+{% block title %}{{ display_name }}{% endblock %}
 
 {% block content %}
-<div class="chat-page-container">
+<div class="chat-page-container {% if is_dm %}dm-container{% endif %}"> 
+    {% if not is_dm %}
     <div class="user-list-sidebar">
         <h4>Usuários na Sala</h4>
         <hr>
         <ul id="user-list"></ul>
     </div>
+    {% endif %}
 
     <div class="chat-container">
         <div class="chat-header">
-            <h2>Sala: <span style="color: var(--accent);">{{ room_name }}</span></h2>
-            {% if request.user == room.creator %}
-                <button id="mute-room-btn" class="btn">Silenciar Sala</button>
-                <button id="unmute-room-btn" class="btn">Reativar Sala</button>
+            {% if is_dm and other_user_profile %}
+                <div class="dm-header-info">
+                    <img src="{{ other_user_profile.avatar.url }}" class="chat-avatar">
+                    <div>
+                        <h2 class="dm-username">{{ other_user_profile.user.username }}</h2>
+                        <small id="user-last-seen" class="user-status">{{ other_user_profile.is_online|yesno:"Online,Visto " }}{% if not other_user_profile.is_online %}{{ other_user_profile.last_seen|timesince }} atrás{% endif %}</small>
+                    </div>
+                </div>
+            {% else %}
+                <h2><span style="color: var(--accent);">{{ display_name }}</span></h2>
             {% endif %}
+            <div id="room-actions-container"></div>
             <a href="{% url 'index' %}" class="btn" style="padding: 6px 12px; font-size: 0.9rem;">
-                <i class="fas fa-arrow-left"></i> Voltar para Salas
+                <i class="fas fa-arrow-left"></i> Voltar
             </a>
         </div>
         
@@ -49,6 +58,7 @@
 
 {{ room_name|json_script:"room-name" }}
 {{ request.user.username|json_script:"user-username" }}
+{{ is_admin|json_script:"is-admin" }}
 {% endblock %}
 
 {% block extra_js %}

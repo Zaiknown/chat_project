@@ -49,6 +49,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
+        # Envia o estado inicial da sala para o usuário que acabou de se conectar
+        if room:
+            is_admin = await self.is_admin_or_creator(room, self.user)
+            await self.send(text_data=json.dumps({
+                'type': 'room_state_update',
+                'is_muted': room.is_muted,
+                'is_admin': is_admin
+            }))
+
         cache.set(self.room_group_name, current_users_count + 1)
 
         if self.room_group_name not in self.connected_users:
@@ -58,15 +67,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.update_last_seen()
         logger.info(f"Usuário {self.user.username} conectou à sala {self.room_name}, last_seen atualizado")
 
-        # Não é necessário enviar mensagem de sistema de entrada/saída para DMs, mas mantendo por simplicidade.
-        # Em uma melhoria futura, poderia ser envolvido por: if not '-' in self.room_name:
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'system_message',
-                'message': f'{self.user.username} entrou na sala.'
-            }
-        )
+        if '-' not in self.room_name:
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'system_message',
+                    'message': f'{self.user.username} entrou na sala.'
+                }
+            )
 
         await self.broadcast_user_list()
 
@@ -77,13 +85,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.update_last_seen()
         logger.info(f"Usuário {self.user.username} desconectou da sala {self.room_name}, last_seen atualizado")
 
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'system_message',
-                'message': f'{self.user.username} saiu da sala.'
-            }
-        )
+        if '-' not in self.room_name:
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'system_message',
+                    'message': f'{self.user.username} saiu da sala.'
+                }
+            )
 
         await self.broadcast_user_list()
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
@@ -162,19 +171,36 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     self.room_group_name,
                     {'type': 'system_message', 'message': f'{target_username} foi promovido a administrador.'}
                 )
+                await self.broadcast_user_list()
+
+            elif admin_action == 'demote' and target_username:
+                await self.demote_user(room, target_username)
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {'type': 'system_message', 'message': f'{target_username} foi rebaixado de administrador.'}
+                )
+                await self.broadcast_user_list()
 
             elif admin_action == 'mute':
                 await self.set_room_mute(room, True)
                 await self.channel_layer.group_send(
                     self.room_group_name,
-                    {'type': 'system_message', 'message': 'A sala foi mutada por um administrador.'}
+                    {
+                        'type': 'mute_status_update',
+                        'is_muted': True,
+                        'message': 'A sala foi mutada por um administrador.'
+                    }
                 )
 
             elif admin_action == 'unmute':
                 await self.set_room_mute(room, False)
                 await self.channel_layer.group_send(
                     self.room_group_name,
-                    {'type': 'system_message', 'message': 'A sala foi desmutada por um administrador.'}
+                    {
+                        'type': 'mute_status_update',
+                        'is_muted': False,
+                        'message': 'A sala foi desmutada por um administrador.'
+                    }
                 )
 
     async def chat_message(self, event): await self.send(text_data=json.dumps(event))
@@ -182,9 +208,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def user_list_update(self, event): await self.send(text_data=json.dumps(event))
     async def typing_signal(self, event): await self.send(text_data=json.dumps(event))
     async def heartbeat(self, event): await self.send(text_data=json.dumps(event))
+    async def user_status_update(self, event): await self.send(text_data=json.dumps(event))
+
+    async def room_state_update(self, event):
+        await self.send(text_data=json.dumps(event))
+
+    async def mute_status_update(self, event):
+        await self.send(text_data=json.dumps(event))
+
+    async def admin_status_update(self, event):
+        target_username = event.get('target_username')
+        if self.user.username == target_username:
+            await self.send(text_data=json.dumps({
+                'type': 'admin_status_update',
+                'is_admin': event.get('is_admin')
+            }))
 
     async def broadcast_user_list(self):
-        profiles = await self.get_profiles_in_room()
+        connected_usernames = self.connected_users.get(self.room_group_name, set())
+        profiles = await self.get_profiles_in_room(connected_usernames)
         await self.channel_layer.group_send(
             self.room_group_name, {
                 'type': 'user_list_update',
@@ -193,24 +235,39 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     @database_sync_to_async
-    def get_profiles_in_room(self):
+    def get_profiles_in_room(self, connected_usernames):
         user_list = []
         usernames = set()
         past_users = ChatMessage.objects.filter(room_name=self.room_name).values_list('author__username', flat=True).distinct()
         usernames.update(past_users)
-        if self.room_group_name in self.connected_users:
-            usernames.update(self.connected_users[self.room_group_name])
+        usernames.update(connected_usernames)
+
+        try:
+            room = ChatRoom.objects.get(name=self.room_name)
+        except ChatRoom.DoesNotExist:
+            room = None
+
         for username in usernames:
             try:
                 user = User.objects.select_related('profile').get(username=username)
                 last_seen = user.profile.last_seen
-                is_online = (timezone.now() - last_seen).total_seconds() < 60
+                is_online = (timezone.now() - last_seen).total_seconds() < 45 if last_seen else False
+                is_creator = room and room.creator == user
+                is_admin = room and user in room.admins.all()
+
                 user_list.append({
                     'username': user.username, 'avatar_url': user.profile.avatar.url,
-                    'is_online': is_online, 'last_seen': last_seen.strftime('%d/%m às %H:%M') if last_seen else 'Nunca'
+                    'is_online': is_online, 'last_seen': last_seen.strftime('%d/%m às %H:%M') if last_seen else 'Nunca',
+                    'is_creator': is_creator,
+                    'is_admin': is_admin
                 })
             except (User.DoesNotExist, Profile.DoesNotExist): continue
         return user_list
+
+    @database_sync_to_async
+    def get_room_sync(self):
+        try: return ChatRoom.objects.get(name=self.room_name)
+        except ChatRoom.DoesNotExist: return None
 
     @database_sync_to_async
     def update_last_seen(self):
@@ -247,13 +304,42 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except User.DoesNotExist: pass
 
     @database_sync_to_async
-    def promote_user(self, room, target_username):
-        if room is None: return # Não pode promover em uma DM
+    def _promote_user_db(self, room, target_username):
+        if room is None: return
         try:
             new_admin = User.objects.get(username=target_username)
-            room.admin_user = new_admin
-            room.save()
+            room.admins.add(new_admin)
         except User.DoesNotExist: pass
+
+    async def promote_user(self, room, target_username):
+        await self._promote_user_db(room, target_username)
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'admin_status_update',
+                'target_username': target_username,
+                'is_admin': True
+            }
+        )
+
+    @database_sync_to_async
+    def _demote_user_db(self, room, target_username):
+        if room is None: return
+        try:
+            admin_to_demote = User.objects.get(username=target_username)
+            room.admins.remove(admin_to_demote)
+        except User.DoesNotExist: pass
+
+    async def demote_user(self, room, target_username):
+        await self._demote_user_db(room, target_username)
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'admin_status_update',
+                'target_username': target_username,
+                'is_admin': False
+            }
+        )
 
     @database_sync_to_async
     def set_room_mute(self, room, state):
@@ -261,12 +347,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         room.is_muted = state
         room.save()
 
-    # --- ALTERADO: Adicionada verificação para `room is None` ---
     @database_sync_to_async
     def is_admin_or_creator(self, room, user):
-        if room is None: # DMs não têm admins ou criadores formais
+        if room is None:
             return False
-        return (
-            room.creator_id == user.id or
-            (room.admin_user_id == user.id if room.admin_user_id else False)
-        )
+        # Verifica se o usuário é o criador ou se está na lista de administradores
+        return room.creator == user or user in room.admins.all()
