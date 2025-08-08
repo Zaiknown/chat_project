@@ -53,10 +53,9 @@ Siga os passos abaixo para configurar e executar o projeto em sua máquina local
 
 1.  **Clone o repositório:**
     ```bash
-    git clone [https://github.com/SeuUsuario/SeuRepositorio.git](https://github.com/SeuUsuario/SeuRepositorio.git)
-    cd SeuRepositorio
+    git clone [https://github.com/Zaiknown/chat_project](https://github.com/Zaiknown/chat_project)
+    cd chat_project
     ```
-    (Substitua `SeuUsuario` e `SeuRepositorio` pelos seus dados reais.)
 
 2.  **Crie e ative um ambiente virtual:**
     ```bash
@@ -88,11 +87,10 @@ Siga os passos abaixo para configurar e executar o projeto em sua máquina local
 
 7.  **Inicie o servidor de desenvolvimento do Django Channels:**
     ```bash
-    daphne -b 0.0.0.0 -p 8000 SeuProjeto.asgi:application
+    daphne -b 0.0.0.0 -p 8000 chat_project.asgi:application
     # Ou, se preferir usar o runserver do Django (que também funciona com Channels):
     # python manage.py runserver
     ```
-    (Substitua `SeuProjeto` pelo nome da sua pasta raiz do projeto Django, onde está o `settings.py` e `asgi.py`.)
 
 8.  **Acesse a aplicação:**
     Abra seu navegador e vá para `http://127.0.0.1:8000/`.
@@ -100,8 +98,3 @@ Siga os passos abaixo para configurar e executar o projeto em sua máquina local
 ## 📄 Licença
 
 Este projeto está licenciado sob a Licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
-
-Lembre-se de substituir `SeuUsuario` e `SeuRepositorio` pelos seus dados reais no GitHub.
-
-Com um `.gitignore` bem configurado e um `README.md` detalhado como este, seu projeto estará muito mais profissional e fácil de ser compreendido e utilizado por outras pessoas! Se tiver mais alguma dúvida, é só perguntar!
-http://googleusercontent.com/memory_tool_content/0
