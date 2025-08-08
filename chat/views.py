@@ -100,12 +100,7 @@ def chat_room_view(request, room_name):
     
     messages_list = []
     for message in chat_messages_qs:
-        avatar_url = '/media/avatars/default.jpg'
-        try:
-            if hasattr(message.author, 'profile') and message.author.profile.avatar:
-                avatar_url = message.author.profile.avatar.url
-        except Exception:
-            pass 
+        avatar_url = message.author.profile.avatar.url if hasattr(message.author, 'profile') and message.author.profile.avatar else '' # Cloudinary will handle default if not set 
 
         messages_list.append({
             'author_username': message.author.username,
