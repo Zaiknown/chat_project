@@ -26,14 +26,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         room = await self.get_room()
-        # Esta verificação está correta para DMs, pois '-' in self.room_name será true,
-        # então a condição do if será falsa e a conexão continuará.
         if room is None and '-' not in self.room_name:
             logger.warning(f"Sala {self.room_name} não encontrada")
             await self.close(code=4004)
             return
 
-        # A chamada a is_user_banned agora é segura por causa da correção na função
         is_banned = await self.is_user_banned(room, self.user)
         if is_banned:
             logger.warning(f"Usuário {self.user.username} foi banido da sala {room.name}")
@@ -49,7 +46,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
-        # Envia o estado inicial da sala para o usuário que acabou de se conectar
         if room:
             is_admin = await self.is_admin_or_creator(room, self.user)
             await self.send(text_data=json.dumps({
@@ -120,7 +116,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.broadcast_user_list()
         elif message:
             room = await self.get_room()
-            # A verificação 'if room' protege a lógica de mute para DMs
             if room and room.is_muted and not await self.is_admin_or_creator(room, self.user):
                 await self.send(text_data=json.dumps({
                     'type': 'system_message',
@@ -128,7 +123,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }))
                 return
             chat_message_obj = await self.save_message(self.user, self.room_name, message)
+            
+            # --- CORREÇÃO APLICADA ---
             avatar_url = await self.get_avatar_url(self.user)
+            
             await self.channel_layer.group_send(
                 self.room_group_name, {
                     'type': 'chat_message',
@@ -256,8 +254,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 is_admin = room and user in room.admins.all()
 
                 user_list.append({
-                    'username': user.username, 'avatar_url': user.profile.avatar.url,
-                    'is_online': is_online, 'last_seen': last_seen.strftime('%d/%m às %H:%M') if last_seen else 'Nunca',
+                    'username': user.username,
+                    # --- CORREÇÃO APLICADA ---
+                    'avatar_url': user.profile.avatar_url,
+                    'is_online': is_online, 
+                    'last_seen': last_seen.strftime('%d/%m às %H:%M') if last_seen else 'Nunca',
                     'is_creator': is_creator,
                     'is_admin': is_admin
                 })
@@ -280,24 +281,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_avatar_url(self, user):
-        try: return user.profile.avatar.url
-        except (Profile.DoesNotExist, ValueError): return '/media/avatars/default.jpg'
+        try:
+            # Chama a propriedade do modelo, que já tem a lógica correta
+            return user.profile.avatar_url
+        except Profile.DoesNotExist:
+            # Caso o perfil ainda não exista, retorna a URL padrão
+            return "https://res.cloudinary.com/drtgpop8f/image/upload/v1723142070/default_avatar_g30p1v.jpg"
 
     @database_sync_to_async
     def get_room(self):
         try: return ChatRoom.objects.get(name=self.room_name)
         except ChatRoom.DoesNotExist: return None
 
-    # --- ALTERADO: Adicionada verificação para `room is None` ---
     @database_sync_to_async
     def is_user_banned(self, room, user):
-        if room is None: # DMs não têm banimento
+        if room is None:
             return False
         return ChatRoomBan.objects.filter(room=room, banned_user=user).exists()
 
     @database_sync_to_async
     def kick_user(self, room, target_username):
-        if room is None: return # Não pode expulsar de uma DM
+        if room is None: return
         try:
             target_user = User.objects.get(username=target_username)
             ChatRoomBan.objects.get_or_create(room=room, banned_user=target_user)
@@ -343,7 +347,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def set_room_mute(self, room, state):
-        if room is None: return # DMs não podem ser mutadas
+        if room is None: return
         room.is_muted = state
         room.save()
 
@@ -351,5 +355,4 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def is_admin_or_creator(self, room, user):
         if room is None:
             return False
-        # Verifica se o usuário é o criador ou se está na lista de administradores
         return room.creator == user or user in room.admins.all()

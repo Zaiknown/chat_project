@@ -98,17 +98,18 @@ def chat_room_view(request, room_name):
 
     chat_messages_qs = ChatMessage.objects.filter(room_name=room_name).select_related('author__profile').order_by('timestamp')[:50]
     
+    # --- CORREÇÃO APLICADA AQUI ---
     messages_list = []
     for message in chat_messages_qs:
-        avatar_url = message.author.profile.avatar.url if hasattr(message.author, 'profile') and message.author.profile.avatar else '' # Cloudinary will handle default if not set 
-
         messages_list.append({
             'author_username': message.author.username,
             'content': message.content,
             'timestamp': message.timestamp,
-            'avatar_url': avatar_url,
+            # Acessa a URL diretamente da propriedade do modelo
+            'avatar_url': message.author.profile.avatar_url,
             'is_sent_by_user': message.author == request.user,
         })
+    # --- FIM DA CORREÇÃO ---
     
     display_name = "Chat Privado" if is_dm else room_name
 
@@ -125,7 +126,8 @@ def chat_room_view(request, room_name):
 
 @login_required
 def room_status_view(request, room_name):
-    if room_name.includes('-'):  # DMs não têm estado de mute
+    # Nota: 'includes' não é um método padrão de string em Python. Use 'in'.
+    if '-' in room_name:  # DMs não têm estado de mute
         return JsonResponse({'is_muted': False})
     try:
         room = ChatRoom.objects.get(name=room_name)
