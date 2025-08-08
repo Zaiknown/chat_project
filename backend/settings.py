@@ -47,10 +47,22 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'whitenoise.runserver_nostatic', # Adicionado para servir estáticos em dev
+    'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
     'chat',
+    'cloudinary', 
+    'cloudinary_storage', 
 ]
+
+# --- Configuração do Cloudinary ---
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': config('CLOUDINARY_API_KEY'),
+    'API_SECRET': config('CLOUDINARY_API_SECRET'),
+}
+
+# Define o Cloudinary como o local padrão para salvar arquivos de mídia
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
