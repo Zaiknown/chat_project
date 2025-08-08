@@ -30,7 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Conexão WebSocket ---
     try {
-        chatSocket = new WebSocket(`ws://${window.location.host}/ws/chat/${roomName}/`);
+        // ALTERAÇÃO APLICADA AQUI
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        chatSocket = new WebSocket(`${protocol}://${window.location.host}/ws/chat/${roomName}/`);
     } catch (error) {
         addSystemMessage('Erro ao conectar ao chat.');
         return;
