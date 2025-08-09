@@ -52,3 +52,4 @@ tzdata==2025.2
 urllib3==2.5.0
 whitenoise==6.9.0
 zope.interface==7.2
+psycopg2-binary
