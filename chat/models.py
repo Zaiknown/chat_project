@@ -15,21 +15,13 @@ class ChatMessage(models.Model):
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    avatar = models.ImageField(default='https://res.cloudinary.com/drtgpop8f/image/upload/v1723142070/default_avatar_g30p1v.jpg', upload_to='avatars')
+    # O default agora aponta para o Public ID da imagem no Cloudinary, dentro da pasta 'avatars'.
+    # O upload_to garante que novas imagens também subam para a pasta 'avatars'.
+    avatar = models.ImageField(default='avatars/default_avatar_g30p1v.jpg', upload_to='avatars')
     last_seen = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f'Perfil de {self.user.username}'
-
-    @property
-    def avatar_url(self):
-        # Se o usuário tem um avatar, o Cloudinary gera a URL completa.
-        if self.avatar and hasattr(self.avatar, 'url'):
-            return self.avatar.url
-        
-        # Se não, retorna a URL da imagem padrão que você subiu no Cloudinary.
-        # Substitua 'drtgpop8f' pelo seu Cloud Name se for diferente.
-        return "https://res.cloudinary.com/drtgpop8f/image/upload/v1723142070/default_avatar_g30p1v.jpg"
 
 
 class ChatRoom(models.Model):
