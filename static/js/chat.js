@@ -18,6 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageInput = document.querySelector('#chat-message-input');
     const messageSubmit = document.querySelector('#chat-message-submit');
     const typingIndicator = document.querySelector('#typing-indicator');
+    // --- ELEMENTOS PARA DELEÇÃO ---
+    const modal = document.getElementById('delete-confirm-modal');
+    const cancelBtn = document.getElementById('cancel-delete-btn');
+    const deleteForMeBtn = document.getElementById('delete-for-me-btn');
+    const deleteForEveryoneBtn = document.getElementById('delete-for-everyone-btn');
+    let messageToDeleteId = null;
 
     // Estado do WebSocket e do Chat
     let typingTimer;
@@ -30,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Conexão WebSocket ---
     try {
-        // ALTERAÇÃO APLICADA AQUI
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
         chatSocket = new WebSocket(`${protocol}://${window.location.host}/ws/chat/${roomName}/`);
     } catch (error) {
@@ -102,6 +107,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.title = `(${unreadMessages}) ${originalTitle}`;
                 }
                 addSystemMessage(data.message);
+                break;
+            case 'message_deleted_for_everyone':
+                const messageElement = document.querySelector(`[data-message-id='${data.message_id}']`);
+                if (messageElement) {
+                    const messageBubble = messageElement.querySelector('.message-bubble');
+                    if (data.deleted_by_admin) {
+                        messageBubble.innerHTML = `<div class="message-content"><i>Essa mensagem foi apagada por um administrador (${data.admin_username})</i></div>`;
+                    } else {
+                        messageBubble.innerHTML = `<div class="message-content"><i>Essa mensagem foi apagada</i></div>`;
+                    }
+                    // Remove o menu de opções, se existir
+                    const optionsMenu = messageElement.querySelector('.message-options');
+                    if (optionsMenu) {
+                        optionsMenu.remove();
+                    }
+                }
                 break;
             case 'heartbeat':
                 break; // Apenas para manter a conexão viva
@@ -271,14 +292,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const messageContainer = document.createElement('div');
         messageContainer.classList.add('chat-message', data.username === userName ? 'sent' : 'received');
+        messageContainer.dataset.messageId = data.id; // Adiciona o ID da mensagem
+
         const authorHtml = data.username !== userName ? `<div class="message-author"><a href="/chat/dm/${data.username}/">${data.username}</a></div>` : '';
+        
+        let optionsHtml = '';
+        if (data.username === userName) {
+            optionsHtml = `
+            <div class="message-options">
+                <button class="options-toggle"><i class="fas fa-ellipsis-v"></i></button>
+                <div class="options-menu">
+                    <button class="delete-btn">Apagar</button>
+                </div>
+            </div>`;
+        } else if (currentUserIsAdmin) {
+            optionsHtml = `
+            <div class="message-options">
+                <button class="options-toggle"><i class="fas fa-ellipsis-v"></i></button>
+                <div class="options-menu">
+                    <button class="admin-delete-btn">Apagar (Admin)</button>
+                </div>
+            </div>`;
+        }
+
         messageContainer.innerHTML = `
-            <img src="${data.avatar_url}" class="chat-avatar" alt="${data.username}">
+            ${data.username !== userName ? `<img src="${data.avatar_url}" class="chat-avatar" alt="${data.username}">` : ''}
             <div class="message-bubble">
                 ${authorHtml}
                 <div class="message-content">${data.message}</div>
                 <div class="message-timestamp">${data.timestamp}</div>
-            </div>`;
+            </div>
+            ${optionsHtml}`;
+        
         if (chatLog) {
             chatLog.appendChild(messageContainer);
             chatLog.scrollTop = chatLog.scrollHeight;
@@ -408,9 +453,79 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- LÓGICA PARA DELEÇÃO DE MENSAGEM ---
+    if (chatLog) {
+        chatLog.addEventListener('click', function(e) {
+            const optionsToggle = e.target.closest('.options-toggle');
+            if (optionsToggle) {
+                const menu = optionsToggle.closest('.message-options').querySelector('.options-menu');
+                const isVisible = menu.style.display === 'block';
+                document.querySelectorAll('.options-menu').forEach(m => {
+                    m.style.display = 'none';
+                });
+                if (!isVisible) {
+                    menu.style.display = 'block';
+                    chatLog.classList.add('chat-log--no-scroll');
+                } else {
+                    chatLog.classList.remove('chat-log--no-scroll');
+                }
+            }
+
+            const deleteBtn = e.target.closest('.delete-btn');
+            if (deleteBtn) {
+                const messageElement = deleteBtn.closest('.chat-message');
+                messageToDeleteId = messageElement.dataset.messageId;
+                if (modal) modal.style.display = 'block';
+                deleteBtn.closest('.options-menu').style.display = 'none';
+            }
+
+            const adminDeleteBtn = e.target.closest('.admin-delete-btn');
+            if (adminDeleteBtn) {
+                const messageElement = adminDeleteBtn.closest('.chat-message');
+                const messageId = messageElement.dataset.messageId;
+                showConfirmationModal(`Tem certeza que deseja apagar esta mensagem como administrador?`, () => {
+                    chatSocket.send(JSON.stringify({
+                        'action': 'delete_message',
+                        'message_id': messageId,
+                        'scope': 'admin_delete'
+                    }));
+                });
+                adminDeleteBtn.closest('.options-menu').style.display = 'none';
+            }
+        });
+    }
+
+    if (modal) {
+        cancelBtn.onclick = () => modal.style.display = 'none';
+        window.onclick = (e) => { if (e.target == modal) modal.style.display = 'none'; };
+
+        deleteForMeBtn.onclick = () => {
+            if (messageToDeleteId) {
+                chatSocket.send(JSON.stringify({
+                    'action': 'delete_message',
+                    'message_id': messageToDeleteId,
+                    'scope': 'for_me'
+                }));
+                modal.style.display = 'none';
+            }
+        };
+
+        deleteForEveryoneBtn.onclick = () => {
+            if (messageToDeleteId) {
+                chatSocket.send(JSON.stringify({
+                    'action': 'delete_message',
+                    'message_id': messageToDeleteId,
+                    'scope': 'for_everyone'
+                }));
+                modal.style.display = 'none';
+            }
+        };
+    }
+    // --- FIM DA LÓGICA DE DELEÇÃO ---
+
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('.user-actions-container')) {
-            document.querySelectorAll('.actions-dropdown.visible').forEach(d => d.classList.remove('visible'));
+        if (!e.target.closest('.user-actions-container') && !e.target.closest('.message-options')) {
+            document.querySelectorAll('.actions-dropdown.visible, .options-menu').forEach(d => d.classList.remove('visible'));
             document.querySelectorAll('.user-list-link.menu-open').forEach(link => link.classList.remove('menu-open'));
         }
         if (!e.target.closest('#room-actions-container')) {

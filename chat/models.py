@@ -1,4 +1,3 @@
-# chat/models.py
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -9,6 +8,8 @@ class ChatMessage(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     deleted_by = models.ManyToManyField(User, related_name='deleted_messages', blank=True)
+    is_deleted_for_everyone = models.BooleanField(default=False)
+    deleted_by_admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='admin_deleted_messages')
 
     def __str__(self):
         return f'Message from {self.author.username} in {self.room_name}'
@@ -30,7 +31,7 @@ class ChatRoom(models.Model):
     user_limit = models.IntegerField(default=10)
     is_muted = models.BooleanField(default=False)
     admins = models.ManyToManyField(User, related_name='admin_of_rooms', blank=True)
-    
+
     def __str__(self):
         return self.name
 

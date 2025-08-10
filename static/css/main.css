@@ -111,6 +111,7 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 .user-status { color: var(--text-secondary); font-size: 0.75rem; margin-left: auto; }
 .chat-container { flex: 3; display: flex; flex-direction: column; height: 75vh; background-color: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); }
 .chat-log { flex-grow: 1; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; }
+.chat-log.chat-log--no-scroll { overflow-y: hidden; overflow-x: hidden; }
 .chat-message { display: flex; align-items: flex-end; margin-bottom: 1rem; gap: 10px; max-width: 75%; }
 .chat-avatar { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
 .message-bubble { padding: 0.7rem 1rem; border-radius: 18px; line-height: 1.4; }
@@ -265,3 +266,76 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     display: none; /* Escondido por padrão */
 }
 
+/* --- ESTILOS DE RESPONSIVIDADE --- */
+@media (max-width: 768px) {
+    .container {
+        margin: 1rem auto;
+        padding: 0 15px;
+    }
+
+    /* Ajustes na Barra de Navegação */
+    .navbar .container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .main-nav {
+        flex-direction: column;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .nav-item {
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.5rem;
+    }
+
+    .user-info {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* Ajustes nos Cards e Conteúdo Geral */
+    .form-card, .content-card, .room-list-card, .create-room-card {
+        padding: 1.5rem;
+    }
+
+    h1, .navbar-brand {
+        font-size: 1.5rem !important;
+    }
+
+    /* Ajustes no Lobby (index.html) */
+    .lobby-container {
+        grid-template-columns: 1fr;
+    }
+
+    /* Ajustes na Página de Perfil */
+    .profile-container {
+        flex-direction: column;
+    }
+
+    .profile-sidebar {
+        align-self: center;
+    }
+
+    /* Ajustes na Página de Chat */
+    .chat-page-container {
+        flex-direction: column;
+    }
+
+    .user-list-sidebar {
+        height: auto; /* Altura automática */
+        max-height: 200px; /* Altura máxima para não ocupar a tela toda */
+        overflow-y: auto;
+        margin-bottom: 1rem;
+    }
+
+    .chat-container {
+        height: 65vh; /* Aumenta a altura do chat no mobile */
+    }
+
+    .chat-message {
+        max-width: 90%; /* Mensagens podem ser um pouco mais largas */
+    }
+}
