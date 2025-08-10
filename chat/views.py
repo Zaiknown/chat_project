@@ -96,20 +96,18 @@ def chat_room_view(request, room_name):
                 request.session['authorized_rooms'] = authorized_rooms
                 request.session.modified = True
 
-    chat_messages_qs = ChatMessage.objects.filter(room_name=room_name).select_related('author__profile').order_by('timestamp')[:50]
+    chat_messages_qs = ChatMessage.objects.filter(room_name=room_name).select_related('author__profile').exclude(deleted_by=request.user).order_by('timestamp')[:50]
     
-    # --- CORREÇÃO APLICADA AQUI ---
     messages_list = []
     for message in chat_messages_qs:
         messages_list.append({
+            'id': message.id,
             'author_username': message.author.username,
             'content': message.content,
-            'timestamp': message.timestamp,
-            # Acessa a URL diretamente da propriedade do modelo
-            'avatar_url': message.author.profile.avatar_url,
+            'timestamp': message.timestamp.strftime('%H:%M'),
+            'avatar_url': message.author.profile.avatar.url,
             'is_sent_by_user': message.author == request.user,
         })
-    # --- FIM DA CORREÇÃO ---
     
     display_name = "Chat Privado" if is_dm else room_name
 
@@ -126,8 +124,7 @@ def chat_room_view(request, room_name):
 
 @login_required
 def room_status_view(request, room_name):
-    # Nota: 'includes' não é um método padrão de string em Python. Use 'in'.
-    if '-' in room_name:  # DMs não têm estado de mute
+    if '-' in room_name:
         return JsonResponse({'is_muted': False})
     try:
         room = ChatRoom.objects.get(name=room_name)
@@ -196,7 +193,6 @@ def delete_room_view(request, room_name):
         return redirect('index')
 
     if request.user == room.creator:
-        # Exclui todas as mensagens de chat associadas a esta sala
         ChatMessage.objects.filter(room_name=room.name).delete()
         room.delete()
         messages.success(request, f"A sala '{room.name}' foi deletada com sucesso.")

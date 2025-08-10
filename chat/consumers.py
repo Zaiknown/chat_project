@@ -1,5 +1,3 @@
-# consumers.py
-
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
@@ -100,6 +98,46 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.error(f"Erro ao decodificar JSON: {text_data}")
             return
 
+        action = text_data_json.get('action')
+
+        if action == 'delete_message':
+            message_id = text_data_json.get('message_id')
+            scope = text_data_json.get('scope')
+
+            if scope == 'for_me' and message_id:
+                await self.delete_message_for_me(message_id)
+                await self.send(text_data=json.dumps({
+                    'type': 'message_deleted_for_me',
+                    'message_id': message_id
+                }))
+            elif scope == 'for_everyone' and message_id:
+                deleted_by_author = await self.delete_message_for_everyone(message_id)
+                if deleted_by_author:
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            'type': 'message_deleted_for_everyone',
+                            'message_id': message_id,
+                            'deleted_by_admin': False
+                        }
+                    )
+            elif scope == 'admin_delete' and message_id:
+                room = await self.get_room()
+                is_admin = await self.is_admin_or_creator(room, self.user)
+                if is_admin:
+                    deleted = await self.delete_message_by_admin(message_id)
+                    if deleted:
+                        await self.channel_layer.group_send(
+                            self.room_group_name,
+                            {
+                                'type': 'message_deleted_for_everyone',
+                                'message_id': message_id,
+                                'deleted_by_admin': True,
+                                'admin_username': self.user.username
+                            }
+                        )
+            return
+
         username = self.user.username
         message = text_data_json.get('message')
         is_typing = text_data_json.get('is_typing')
@@ -124,12 +162,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 return
             chat_message_obj = await self.save_message(self.user, self.room_name, message)
             
-            # --- CORREÇÃO APLICADA ---
             avatar_url = await self.get_avatar_url(self.user)
             
             await self.channel_layer.group_send(
                 self.room_group_name, {
                     'type': 'chat_message',
+                    'id': chat_message_obj.id,
                     'message': chat_message_obj.content,
                     'username': username,
                     'timestamp': chat_message_obj.timestamp.strftime('%H:%M'),
@@ -207,6 +245,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def typing_signal(self, event): await self.send(text_data=json.dumps(event))
     async def heartbeat(self, event): await self.send(text_data=json.dumps(event))
     async def user_status_update(self, event): await self.send(text_data=json.dumps(event))
+    async def message_deleted_for_me(self, event): await self.send(text_data=json.dumps(event))
+    async def message_deleted_for_everyone(self, event): await self.send(text_data=json.dumps(event))
 
     async def room_state_update(self, event):
         await self.send(text_data=json.dumps(event))
@@ -255,8 +295,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
                 user_list.append({
                     'username': user.username,
-                    # --- CORREÇÃO APLICADA ---
-                    'avatar_url': user.profile.avatar_url,
+                    'avatar_url': user.profile.avatar.url,
                     'is_online': is_online, 
                     'last_seen': last_seen.strftime('%d/%m às %H:%M') if last_seen else 'Nunca',
                     'is_creator': is_creator,
@@ -282,11 +321,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_avatar_url(self, user):
         try:
-            # Chama a propriedade do modelo, que já tem a lógica correta
-            return user.profile.avatar_url
+            return user.profile.avatar.url
         except Profile.DoesNotExist:
-            # Caso o perfil ainda não exista, retorna a URL padrão
-            return "https://res.cloudinary.com/drtgpop8f/image/upload/v1723142070/default_avatar_g30p1v.jpg"
+            return Profile._meta.get_field('avatar').get_default()
 
     @database_sync_to_async
     def get_room(self):
@@ -356,3 +393,36 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if room is None:
             return False
         return room.creator == user or user in room.admins.all()
+
+    @database_sync_to_async
+    def delete_message_for_me(self, message_id):
+        try:
+            message = ChatMessage.objects.get(id=message_id)
+            message.deleted_by.add(self.user)
+        except ChatMessage.DoesNotExist:
+            logger.warning(f"Tentativa de apagar mensagem inexistente com ID {message_id}")
+
+    @database_sync_to_async
+    def delete_message_for_everyone(self, message_id):
+        try:
+            message = ChatMessage.objects.get(id=message_id)
+            if self.user == message.author:
+                message.is_deleted_for_everyone = True
+                message.save()
+                return True
+            return False
+        except ChatMessage.DoesNotExist:
+            logger.warning(f"Tentativa de apagar mensagem inexistente com ID {message_id}")
+            return False
+
+    @database_sync_to_async
+    def delete_message_by_admin(self, message_id):
+        try:
+            message = ChatMessage.objects.get(id=message_id)
+            message.is_deleted_for_everyone = True
+            message.deleted_by_admin = self.user
+            message.save()
+            return True
+        except ChatMessage.DoesNotExist:
+            logger.warning(f"Tentativa de apagar mensagem inexistente com ID {message_id}")
+            return False
