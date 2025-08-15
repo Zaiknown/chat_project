@@ -96,10 +96,17 @@ def chat_room_view(request, room_name):
                 request.session['authorized_rooms'] = authorized_rooms
                 request.session.modified = True
 
-    chat_messages_qs = ChatMessage.objects.filter(room_name=room_name).select_related('author__profile').exclude(deleted_by=request.user).order_by('timestamp')[:50]
+    chat_messages_qs = ChatMessage.objects.filter(room_name=room_name).select_related('author__profile', 'parent__author').exclude(deleted_by=request.user).order_by('timestamp')[:50]
     
     messages_list = []
     for message in chat_messages_qs:
+        parent_info = None
+        if message.parent:
+            parent_info = {
+                'author': message.parent.author.username,
+                'content': message.parent.content,
+            }
+
         messages_list.append({
             'id': message.id,
             'author_username': message.author.username,
@@ -107,6 +114,7 @@ def chat_room_view(request, room_name):
             'timestamp': message.timestamp.strftime('%H:%M'),
             'avatar_url': message.author.profile.avatar.url,
             'is_sent_by_user': message.author == request.user,
+            'parent': parent_info,
         })
     
     display_name = "Chat Privado" if is_dm else room_name

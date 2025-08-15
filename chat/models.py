@@ -7,6 +7,7 @@ class ChatMessage(models.Model):
     room_name = models.CharField(max_length=255)
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
+    parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replies')
     deleted_by = models.ManyToManyField(User, related_name='deleted_messages', blank=True)
     is_deleted_for_everyone = models.BooleanField(default=False)
     deleted_by_admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='admin_deleted_messages')

@@ -19,6 +19,9 @@
         min-width: 120px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
+    .options-menu.visible {
+        display: block;
+    }
     .options-menu button {
         background: none;
         border: none;
@@ -73,6 +76,50 @@
         justify-content: center;
         gap: 1rem;
     }
+
+    /* Reply Styles */
+    .reply-bar {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        background-color: var(--bg-main);
+        border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+    }
+    .reply-bar-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        font-size: 0.9rem;
+    }
+    .reply-bar-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .cancel-reply-btn {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--text-secondary);
+    }
+    .reply-context {
+        padding: 8px;
+        margin-bottom: 5px;
+        background-color: var(--bg-main);
+        border-radius: 5px;
+        font-size: 0.9em;
+        border-left: 3px solid var(--primary-accent);
+    }
+    .reply-content {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-style: italic;
+        color: var(--text-secondary);
+    }
 </style>
 {% endblock %}
 
@@ -112,25 +159,43 @@
                         <img class="chat-avatar" src="{{ message.avatar_url }}" alt="{{ message.author_username }}">
                     {% endif %}
                     <div class="message-bubble">
+                        {% if message.parent %}
+                            <div class="reply-context">
+                                Respondendo a <strong>{{ message.parent.author }}</strong>:
+                                <div class="reply-content">{{ message.parent.content }}</div>
+                            </div>
+                        {% endif %}
                         {% if not message.is_sent_by_user %}
                             <div class="message-author">{{ message.author_username }}</div>
                         {% endif %}
                         <div class="message-content">{{ message.content }}</div>
                         <div class="message-timestamp">{{ message.timestamp }}</div>
                     </div>
-                    {% if message.is_sent_by_user %}
-                        <div class="message-options">
-                            <button class="options-toggle"><i class="fas fa-ellipsis-v"></i></button>
-                            <div class="options-menu">
-                                <button class="delete-btn">Apagar</button>
-                            </div>
+                    <div class="message-options">
+                        <button class="options-toggle"><i class="fas fa-ellipsis-v"></i></button>
+                        <div class="options-menu">
+                            <button class="reply-btn">Responder</button>
+                            {% if message.is_sent_by_user %}
+                            <button class="delete-btn">Apagar</button>
+                            {% elif is_admin %}
+                            <button class="admin-delete-btn">Apagar (Admin)</button>
+                            {% endif %}
                         </div>
-                    {% endif %}
+                    </div>
                 </div>
             {% endfor %}
         </div>
         
         <div id="typing-indicator" class="typing-indicator"></div>
+
+        <div id="reply-bar" class="reply-bar" style="display: none;">
+            <div class="reply-bar-content">
+                <div class="reply-bar-text">
+                    Respondendo a <strong id="reply-bar-user"></strong>: <span id="reply-bar-message"></span>
+                </div>
+                <button id="cancel-reply-btn" class="cancel-reply-btn">&times;</button>
+            </div>
+        </div>
 
         <div class="chat-input-area">
             <input id="chat-message-input" type="text" class="form-control" placeholder="Digite sua mensagem...">
