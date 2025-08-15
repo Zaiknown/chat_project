@@ -111,7 +111,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'message_id': message_id
                 }))
             elif scope == 'for_everyone' and message_id:
-                deleted_by_author = await self.delete_message_for_everyone(message_id)
+                deleted_by_author, error_message = await self.delete_message_for_everyone(message_id)
                 if deleted_by_author:
                     await self.channel_layer.group_send(
                         self.room_group_name,
@@ -121,11 +121,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             'deleted_by_admin': False
                         }
                     )
+                elif error_message:
+                    await self.send(text_data=json.dumps({
+                        'type': 'system_message',
+                        'message': error_message
+                    }))
             elif scope == 'admin_delete' and message_id:
                 room = await self.get_room()
                 is_admin = await self.is_admin_or_creator(room, self.user)
                 if is_admin:
-                    deleted = await self.delete_message_by_admin(message_id)
+                    deleted, error_message = await self.delete_message_by_admin(message_id)
                     if deleted:
                         await self.channel_layer.group_send(
                             self.room_group_name,
@@ -136,6 +141,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                 'admin_username': self.user.username
                             }
                         )
+                    elif error_message:
+                        await self.send(text_data=json.dumps({
+                            'type': 'system_message',
+                            'message': error_message
+                        }))
             return
 
         username = self.user.username
@@ -160,9 +170,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'message': 'A sala está mutada. Apenas administradores podem enviar mensagens.'
                 }))
                 return
-            chat_message_obj = await self.save_message(self.user, self.room_name, message)
+
+            parent_id = text_data_json.get('reply_to')
+            chat_message_obj = await self.save_message(self.user, self.room_name, message, parent_id)
             
             avatar_url = await self.get_avatar_url(self.user)
+
+            parent_info = None
+            if chat_message_obj.parent:
+                parent_info = {
+                    'author': chat_message_obj.parent.author.username,
+                    'content': chat_message_obj.parent.content,
+                }
             
             await self.channel_layer.group_send(
                 self.room_group_name, {
@@ -172,6 +191,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'username': username,
                     'timestamp': chat_message_obj.timestamp.strftime('%H:%M'),
                     'avatar_url': avatar_url,
+                    'parent': parent_info,
                 }
             )
         elif is_typing is not None:
@@ -315,8 +335,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception as e: logger.error(f"Erro ao atualizar last_seen para {self.user.username}: {str(e)}")
 
     @database_sync_to_async
-    def save_message(self, user, room, message):
-        return ChatMessage.objects.create(author=user, room_name=room, content=message)
+    def save_message(self, user, room, message, parent_id=None):
+        parent_message = None
+        if parent_id:
+            try:
+                parent_message = ChatMessage.objects.select_related('author').get(id=parent_id)
+            except ChatMessage.DoesNotExist:
+                pass
+        return ChatMessage.objects.create(author=user, room_name=room, content=message, parent=parent_message)
 
     @database_sync_to_async
     def get_avatar_url(self, user):
@@ -407,22 +433,30 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             message = ChatMessage.objects.get(id=message_id)
             if self.user == message.author:
-                message.is_deleted_for_everyone = True
-                message.save()
-                return True
-            return False
+                time_diff = timezone.now() - message.timestamp
+                if time_diff.total_seconds() <= 300:
+                    message.is_deleted_for_everyone = True
+                    message.save()
+                    return True, None
+                else:
+                    return False, "Você só pode apagar mensagens em até 5 minutos."
+            return False, "Você só pode apagar suas próprias mensagens."
         except ChatMessage.DoesNotExist:
             logger.warning(f"Tentativa de apagar mensagem inexistente com ID {message_id}")
-            return False
+            return False, "Mensagem não encontrada."
 
     @database_sync_to_async
     def delete_message_by_admin(self, message_id):
         try:
             message = ChatMessage.objects.get(id=message_id)
-            message.is_deleted_for_everyone = True
-            message.deleted_by_admin = self.user
-            message.save()
-            return True
+            time_diff = timezone.now() - message.timestamp
+            if time_diff.total_seconds() <= 300:
+                message.is_deleted_for_everyone = True
+                message.deleted_by_admin = self.user
+                message.save()
+                return True, None
+            else:
+                return False, "Admins só podem apagar mensagens em até 5 minutos."
         except ChatMessage.DoesNotExist:
             logger.warning(f"Tentativa de apagar mensagem inexistente com ID {message_id}")
-            return False
+            return False, "Mensagem não encontrada."

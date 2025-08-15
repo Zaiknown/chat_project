@@ -25,6 +25,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteForEveryoneBtn = document.getElementById('delete-for-everyone-btn');
     let messageToDeleteId = null;
 
+    // --- ELEMENTOS PARA RESPOSTA ---
+    const replyBar = document.getElementById('reply-bar');
+    const cancelReplyBtn = document.getElementById('cancel-reply-btn');
+    const replyBarUser = document.getElementById('reply-bar-user');
+    const replyBarMessage = document.getElementById('reply-bar-message');
+    let replyingToId = null;
+
     // Estado do WebSocket e do Chat
     let typingTimer;
     const TYPING_TIMER_LENGTH = 2000;
@@ -296,28 +303,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const authorHtml = data.username !== userName ? `<div class="message-author"><a href="/chat/dm/${data.username}/">${data.username}</a></div>` : '';
         
-        let optionsHtml = '';
+        let optionsHtml = '<div class="message-options">';
+        optionsHtml += '<button class="options-toggle"><i class="fas fa-ellipsis-v"></i></button>';
+        optionsHtml += '<div class="options-menu">';
+        optionsHtml += '<button class="reply-btn">Responder</button>';
+
         if (data.username === userName) {
-            optionsHtml = `
-            <div class="message-options">
-                <button class="options-toggle"><i class="fas fa-ellipsis-v"></i></button>
-                <div class="options-menu">
-                    <button class="delete-btn">Apagar</button>
+            optionsHtml += '<button class="delete-btn">Apagar</button>';
+        }
+
+        if (currentUserIsAdmin && data.username !== userName) {
+            optionsHtml += '<button class="admin-delete-btn">Apagar (Admin)</button>';
+        }
+
+        optionsHtml += '</div></div>';
+
+        let replyContextHtml = '';
+        if (data.parent) {
+            const parentAuthor = data.parent.author === userName ? 'você mesmo' : data.parent.author;
+            replyContextHtml = `
+                <div class="reply-context">
+                    Respondendo a <strong>${parentAuthor}</strong>: 
+                    <div class="reply-content">${data.parent.content}</div>
                 </div>
-            </div>`;
-        } else if (currentUserIsAdmin) {
-            optionsHtml = `
-            <div class="message-options">
-                <button class="options-toggle"><i class="fas fa-ellipsis-v"></i></button>
-                <div class="options-menu">
-                    <button class="admin-delete-btn">Apagar (Admin)</button>
-                </div>
-            </div>`;
+            `;
         }
 
         messageContainer.innerHTML = `
             ${data.username !== userName ? `<img src="${data.avatar_url}" class="chat-avatar" alt="${data.username}">` : ''}
             <div class="message-bubble">
+                ${replyContextHtml}
                 ${authorHtml}
                 <div class="message-content">${data.message}</div>
                 <div class="message-timestamp">${data.timestamp}</div>
@@ -410,9 +425,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearTimeout(typingTimer);
                 isTyping = false;
                 if (chatSocket.readyState === WebSocket.OPEN) {
-                    chatSocket.send(JSON.stringify({ 'is_typing': false }));
-                    chatSocket.send(JSON.stringify({ 'message': message }));
+                    const data = {
+                        'is_typing': false,
+                        'message': message
+                    };
+                    if (replyingToId) {
+                        data.reply_to = replyingToId;
+                    }
+                    chatSocket.send(JSON.stringify(data));
                     if (messageInput) messageInput.value = '';
+                    
+                    // Reset reply state
+                    replyingToId = null;
+                    replyBar.style.display = 'none';
                 }
             }
         };
@@ -453,44 +478,85 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- LÓGICA PARA DELEÇÃO DE MENSAGEM ---
+    document.addEventListener('click', function(e) {
+        const optionsToggle = e.target.closest('.options-toggle');
+        if (optionsToggle) {
+            const menu = optionsToggle.closest('.message-options').querySelector('.options-menu');
+            const isVisible = menu.classList.contains('visible');
+            document.querySelectorAll('.options-menu.visible').forEach(m => {
+                m.classList.remove('visible');
+            });
+            if (!isVisible) {
+                menu.classList.add('visible');
+            }
+        }
+
+        const deleteBtn = e.target.closest('.delete-btn');
+        if (deleteBtn) {
+            const messageElement = deleteBtn.closest('.chat-message');
+            messageToDeleteId = messageElement.dataset.messageId;
+            if (modal) modal.style.display = 'block';
+            deleteBtn.closest('.options-menu').style.display = 'none';
+        }
+
+        const adminDeleteBtn = e.target.closest('.admin-delete-btn');
+        if (adminDeleteBtn) {
+            const messageElement = adminDeleteBtn.closest('.chat-message');
+            const messageId = messageElement.dataset.messageId;
+            showConfirmationModal(`Tem certeza que deseja apagar esta mensagem como administrador?`, () => {
+                chatSocket.send(JSON.stringify({
+                    'action': 'delete_message',
+                    'message_id': messageId,
+                    'scope': 'admin_delete'
+                }));
+            });
+            adminDeleteBtn.closest('.options-menu').style.display = 'none';
+        }
+
+        const replyBtn = e.target.closest('.reply-btn');
+        if (replyBtn) {
+            const messageElement = replyBtn.closest('.chat-message');
+            replyingToId = messageElement.dataset.messageId;
+            const messageContent = messageElement.querySelector('.message-content').textContent;
+            const messageAuthorUsername = messageElement.querySelector('.message-author')?.textContent || userName;
+
+            if (messageAuthorUsername === userName) {
+                replyBarUser.textContent = 'você mesmo';
+            } else {
+                replyBarUser.textContent = messageAuthorUsername;
+            }
+            replyBarMessage.textContent = messageContent;
+            replyBar.style.display = 'flex';
+
+            replyBtn.closest('.options-menu').style.display = 'none';
+            messageInput.focus();
+        }
+    });
+
+    if(cancelReplyBtn) {
+        cancelReplyBtn.onclick = () => {
+            replyingToId = null;
+            replyBar.style.display = 'none';
+        };
+    }
+
     if (chatLog) {
-        chatLog.addEventListener('click', function(e) {
-            const optionsToggle = e.target.closest('.options-toggle');
-            if (optionsToggle) {
-                const menu = optionsToggle.closest('.message-options').querySelector('.options-menu');
-                const isVisible = menu.style.display === 'block';
-                document.querySelectorAll('.options-menu').forEach(m => {
-                    m.style.display = 'none';
-                });
-                if (!isVisible) {
-                    menu.style.display = 'block';
-                    chatLog.classList.add('chat-log--no-scroll');
+        chatLog.addEventListener('dblclick', function(e) {
+            const messageElement = e.target.closest('.chat-message');
+            if (messageElement) {
+                replyingToId = messageElement.dataset.messageId;
+                const messageContent = messageElement.querySelector('.message-content').textContent;
+                const messageAuthorUsername = messageElement.querySelector('.message-author')?.textContent || userName;
+
+                if (messageAuthorUsername === userName) {
+                    replyBarUser.textContent = 'você mesmo';
                 } else {
-                    chatLog.classList.remove('chat-log--no-scroll');
+                    replyBarUser.textContent = messageAuthorUsername;
                 }
-            }
+                replyBarMessage.textContent = messageContent;
+                replyBar.style.display = 'flex';
 
-            const deleteBtn = e.target.closest('.delete-btn');
-            if (deleteBtn) {
-                const messageElement = deleteBtn.closest('.chat-message');
-                messageToDeleteId = messageElement.dataset.messageId;
-                if (modal) modal.style.display = 'block';
-                deleteBtn.closest('.options-menu').style.display = 'none';
-            }
-
-            const adminDeleteBtn = e.target.closest('.admin-delete-btn');
-            if (adminDeleteBtn) {
-                const messageElement = adminDeleteBtn.closest('.chat-message');
-                const messageId = messageElement.dataset.messageId;
-                showConfirmationModal(`Tem certeza que deseja apagar esta mensagem como administrador?`, () => {
-                    chatSocket.send(JSON.stringify({
-                        'action': 'delete_message',
-                        'message_id': messageId,
-                        'scope': 'admin_delete'
-                    }));
-                });
-                adminDeleteBtn.closest('.options-menu').style.display = 'none';
+                messageInput.focus();
             }
         });
     }
@@ -525,11 +591,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.user-actions-container') && !e.target.closest('.message-options')) {
-            document.querySelectorAll('.actions-dropdown.visible, .options-menu').forEach(d => d.classList.remove('visible'));
+            document.querySelectorAll('.actions-dropdown.visible, .options-menu.visible').forEach(d => d.classList.remove('visible'));
             document.querySelectorAll('.user-list-link.menu-open').forEach(link => link.classList.remove('menu-open'));
         }
         if (!e.target.closest('#room-actions-container')) {
             document.querySelectorAll('.room-actions-dropdown.visible').forEach(d => d.classList.remove('visible'));
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.actions-dropdown.visible, .options-menu.visible').forEach(d => d.classList.remove('visible'));
+            document.querySelectorAll('.user-list-link.menu-open').forEach(link => link.classList.remove('menu-open'));
+            if (replyBar.style.display !== 'none') {
+                replyingToId = null;
+                replyBar.style.display = 'none';
+            }
         }
     });
 
