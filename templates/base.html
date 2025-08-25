@@ -15,7 +15,7 @@
 <body>
 <nav class="navbar">
     <div class="container">
-        <a class="navbar-brand" href="{% url 'index' %}">Chat em Tempo Real</a>
+        <a class="navbar-brand" href="{% url 'index' %}">ZK's Chat</a>
         <button class="navbar-toggler" type="button" aria-label="Toggle navigation">
             <i class="fas fa-bars"></i>
         </button>
@@ -30,18 +30,20 @@
             </ul>
 
             <div class="user-info">
-                <button id="theme-toggle" class="btn-link" title="Mudar tema" style="font-size: 1.2rem;">
-                    <i class="fas fa-moon"></i>
-                </button>
-                {% if user.is_authenticated %}
-                    <form action="{% url 'logout' %}" method="POST" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn-link">Sair</button>
-                    </form>
-                {% else %}
-                    <a href="{% url 'register' %}" class="btn-link">Cadastre-se</a>
-                    <a href="{% url 'login' %}" class="btn">Entrar</a>
-                {% endif %}
+                <div class="user-actions">
+                    <button id="theme-toggle" class="btn-link" title="Mudar tema" style="font-size: 1.2rem;">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    {% if user.is_authenticated %}
+                        <form action="{% url 'logout' %}" method="POST" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-link">Sair</button>
+                        </form>
+                    {% else %}
+                        <a href="{% url 'register' %}" class="btn-link">Cadastre-se</a>
+                        <a href="{% url 'login' %}" class="btn">Entrar</a>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
