@@ -48,7 +48,7 @@
                         {% with profile.user.username as other_username %}
                             <a href="{% url 'chat:start-dm' other_username %}" class="room-link">
                                 <div style="display: flex; align-items: center; gap: 10px;">
-                                                                        <img src="{{ profile.avatar.url }}" class="chat-avatar" style="width: 30px; height: 30px;">
+                                    <img src="{{ profile.avatar.url }}" class="chat-avatar" style="width: 30px; height: 30px;">
                                     <span>{{ other_username }}</span>
                                 </div>
                             </a>
