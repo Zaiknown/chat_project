@@ -2,8 +2,8 @@ from django.contrib import admin
 from django.urls import path, include
 from chat import views as chat_views
 from django.contrib.auth import views as auth_views
-from django.conf import settings
-from django.conf.urls.static import static
+from django.conf import settings # ADICIONE ESTA LINHA
+from django.conf.urls.static import static # ADICIONE ESTA LINHA
 from chat.forms import CustomAuthenticationForm
 
 urlpatterns = [
@@ -18,5 +18,5 @@ urlpatterns = [
     path('chat/', include('chat.urls', namespace='chat')),
 ]
 
-if settings.DEBUG:
+if settings.DEBUG is False:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
