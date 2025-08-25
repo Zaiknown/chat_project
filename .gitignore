@@ -54,3 +54,4 @@ Thumbs.db # Windows
 dump.rdb
 appendonly.aof
 
+/staticfiles/
