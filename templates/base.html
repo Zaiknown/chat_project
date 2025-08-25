@@ -84,6 +84,13 @@
     {% endif %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // --- LÓGICA DO MENU HAMBÚRGUER ---
+        const navbarToggler = document.querySelector('.navbar-toggler');
+        const navbarCollapse = document.querySelector('.navbar-collapse');
+
+        navbarToggler.addEventListener('click', function() {
+            navbarCollapse.classList.toggle('active');
+        });
 
         // --- LÓGICA PARA MENSAGENS DESAPARECEREM ---
         const allAlerts = document.querySelectorAll('.alert');
