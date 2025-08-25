@@ -126,12 +126,7 @@ def chat_room_view(request, room_name):
                 else:
                     messages.error(request, "Senha incorreta!")
             return render(request, 'password_prompt.html', {'room': room, 'form': RoomPasswordForm()})
-        else:
-            authorized_rooms = request.session.get('authorized_rooms', [])
-            if room.name in authorized_rooms:
-                authorized_rooms.remove(room.name)
-                request.session['authorized_rooms'] = authorized_rooms
-                request.session.modified = True
+        
 
     chat_messages_qs = ChatMessage.objects.filter(room_name=room_name).select_related('author__profile', 'parent__author').exclude(deleted_by=request.user).order_by('timestamp')[:50]
     

@@ -111,6 +111,10 @@ document.addEventListener('DOMContentLoaded', () => {
     chatSocket.onclose = (e) => {
         let message = 'Você foi desconectado.';
         if (e.code === 4001) message = 'Você foi banido desta sala.';
+        if (e.code === 4002) {
+            message = 'Acesso negado. Redirecionando para a página de senha...';
+            window.location.href = `/chat/room/${roomName}/`;
+        }
         if (e.code === 4003) message = 'A sala atingiu o limite de usuários.';
         if (e.code === 4004) message = 'Sala não encontrada ou não existe.';
         addSystemMessage(message);

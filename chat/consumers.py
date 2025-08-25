@@ -25,6 +25,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         room = await self.get_room()
+        if room and room.password:
+            authorized_rooms = self.scope['session'].get('authorized_rooms', [])
+            if self.room_name not in authorized_rooms:
+                await self.close(code=4002)
+                return
+
         if room is None and '-' not in self.room_name:
             logger.warning(f"Sala {self.room_name} não encontrada")
             await self.close(code=4004)
