@@ -28,7 +28,7 @@ class CustomAuthenticationForm(AuthenticationForm):
         self.fields['username'].label = 'Nome de Usuário ou Email'
 
 class UserUpdateForm(forms.ModelForm):
-    email = forms.EmailField()
+    email = forms.EmailField(required=False)
 
     class Meta:
         model = User
