@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 
+from cloudinary.models import CloudinaryField
+
 class ChatMessage(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_messages')
     room_name = models.CharField(max_length=255)
@@ -17,7 +19,7 @@ class ChatMessage(models.Model):
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    avatar = models.ImageField(default='avatars/default.jpg', upload_to='avatars')
+    avatar = CloudinaryField('image', default='avatars/default.jpg')
     last_seen = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
