@@ -49,7 +49,7 @@ body.modal-open {
 /* --- Barra de Navegação e Rodapé --- */
 .navbar { background-color: var(--bg-card); padding: 1rem 0; border-bottom: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.05); grid-row: 1 / 2; }
 .navbar .container { display: flex; justify-content: space-between; align-items: center; }
-.navbar-brand { color: var(--text-main); text-decoration: none; font-size: 1.5rem; font-weight: 700; }
+.navbar-brand { color: var(--text-main); text-decoration: none; font-size: 1.5rem; font-weight: 700; margin-right: 2rem; }
 .user-info { display: flex; align-items: center; gap: 1rem; }
 .btn { background-color: var(--primary-accent); color: white; padding: 8px 15px; border-radius: 6px; text-decoration: none; border: none; cursor: pointer; font-weight: 600; transition: background-color 0.3s ease; }
 .btn:hover { opacity: 0.9; }
@@ -191,6 +191,19 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     gap: 2rem; /* Espaçamento entre os links */
     margin: 0;
     padding: 0;
+    flex-grow: 1; /* Faz a navegação principal crescer */
+}
+
+.navbar-collapse {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+}
+
+.user-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem; /* Espaçamento entre os botões */
 }
 
 .nav-link {
