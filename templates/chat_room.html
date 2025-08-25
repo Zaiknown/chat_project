@@ -47,7 +47,7 @@
     }
 
     /* Modal Styles */
-    .modal {
+        .modal {
         display: none; 
         position: fixed; 
         z-index: 1000; 
@@ -121,6 +121,33 @@
         color: var(--text-secondary);
     }
 </style>
+<style>
+    /* Centraliza o modal de configurações */
+    #chatSettingsModal .modal-content {
+        margin: 0;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #chatSettingsModal .user-management {
+        overflow-y: auto;
+        flex-grow: 1;
+    }
+
+    /* Garante que o modal de confirmação também seja centralizado */
+    #confirmation-modal .modal-content {
+        margin: 0;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -135,22 +162,61 @@
 
     <div class="chat-container">
         <div class="chat-header">
-            {% if is_dm and other_user_profile %}
-                <div class="dm-header-info">
-                    <img src="{{ other_user_profile.avatar.url }}" class="chat-avatar">
-                    <div>
-                        <h2 class="dm-username">{{ other_user_profile.user.username }}</h2>
-                        <small id="user-last-seen" class="user-status">{{ other_user_profile.is_online|yesno:"Online,Visto " }}{% if not other_user_profile.is_online %}{{ other_user_profile.last_seen|timesince }} atrás{% endif %}</small>
-                    </div>
+        <div class="dm-header-info">
+            <a href="{% url 'index' %}" class="btn-back" style="margin-right: 10px;"><i class="fas fa-arrow-left"></i></a>
+            {% if is_dm %}
+                <img src="{{ other_user_profile.avatar.url }}" alt="Avatar" class="chat-avatar">
+                <div>
+                    <h4 class="dm-username">{{ other_user_profile.user.username }}</h4>
+                    <div class="user-status" id="user-last-seen"></div>
                 </div>
             {% else %}
-                <h2><span style="color: var(--accent);">{{ display_name }}</span></h2>
+                <h4 class="dm-username">{{ room.name }}</h4>
             {% endif %}
-            <div id="room-actions-container"></div>
-            <a href="{% url 'index' %}" class="btn" style="padding: 6px 12px; font-size: 0.9rem;">
-                <i class="fas fa-arrow-left"></i> Voltar
-            </a>
         </div>
+        <div class="chat-header-buttons">
+            {% if not is_dm %}
+            <a href="{% url 'chat:leave_room' room.name %}" class="btn btn-danger">Sair do Chat</a>
+            {% endif %}
+            {% if is_admin %}
+            <button id="settings-btn" class="btn btn-secondary"><i class="fas fa-cog"></i></button>
+            {% endif %}
+            <button id="clear-chat-btn" class="btn btn-danger"><i class="fas fa-trash-alt"></i></button>
+        </div>
+    </div>
+
+<!-- Modal de Configurações do Chat -->
+<div id="chatSettingsModal" class="modal">
+    <div class="modal-content">
+        <h3>Configurações do Chat</h3>
+        <form id="chat-settings-form">
+            <div class="form-group">
+                <label for="room-name-input">Nome da Sala</label>
+                <input type="text" id="room-name-input" class="form-control" value="{{ room.name }}">
+            </div>
+            <div class="form-group">
+                <label for="user-limit-input">Limite de Usuários</label>
+                <input type="number" id="user-limit-input" class="form-control" value="{{ room.user_limit }}">
+            </div>
+            <div class="form-group">
+                <button type="button" id="mute-room-btn" class="btn btn-warning">
+                    {% if room.is_muted %}Desmutar Sala{% else %}Silenciar Sala{% endif %}
+                </button>
+            </div>
+            <div class="modal-actions">
+                <button type="submit" class="btn">Salvar</button>
+                <button type="button" id="cancel-settings-btn" class="btn-link">Cancelar</button>
+            </div>
+        </form>
+        <hr>
+        <div class="user-management">
+            <h4>Gerenciar Usuários</h4>
+            <ul id="user-management-list" class="list-group">
+                <!-- User list will be populated by JavaScript -->
+            </ul>
+        </div>
+    </div>
+</div>
         
         <div class="chat-log" id="chat-log">
             {% for message in chat_messages %}

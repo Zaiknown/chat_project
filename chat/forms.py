@@ -1,12 +1,31 @@
 from django import forms
 from django.contrib.auth.models import User
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from .models import Profile, ChatRoom
 
-class CustomUserCreationForm(UserCreationForm):
+class UsernameSignUpForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = UserCreationForm.Meta.fields + ('email',)
+        fields = ('username',)
+
+class EmailSignUpForm(UserCreationForm):
+    email = forms.EmailField(required=True)
+
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ('email',)
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.username = user.email.split('@')[0]
+        if commit:
+            user.save()
+        return user
+
+class CustomAuthenticationForm(AuthenticationForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['username'].label = 'Nome de Usuário ou Email'
 
 class UserUpdateForm(forms.ModelForm):
     email = forms.EmailField()

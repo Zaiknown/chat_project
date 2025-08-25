@@ -3,7 +3,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.core.cache import cache
 from django.contrib.auth.models import User
-from .models import ChatMessage, Profile, ChatRoom, ChatRoomBan
+from .models import ChatMessage, Profile, ChatRoom, ChatRoomBan, ChatRoomMute
 from django.utils import timezone
 import logging
 
@@ -15,6 +15,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.user = self.scope['user']
+        self.left_explicitly = False
         safe_room_name = ''.join(e for e in self.room_name if e.isalnum() or e in ['-', '_']).lower()
         self.room_group_name = f'chat_{safe_room_name}'
 
@@ -29,13 +30,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close(code=4004)
             return
 
-        is_banned = await self.is_user_banned(room, self.user)
-        if is_banned:
+        self.banned_user = await self.is_user_banned(room, self.user)
+        if self.banned_user:
             logger.warning(f"Usuário {self.user.username} foi banido da sala {room.name}")
             await self.close(code=4001)
             return
 
-        current_users_count = len(self.connected_users.get(self.room_group_name, set()))
+        current_users_count = len(self.connected_users.get(self.room_group_name, {}))
         if room and current_users_count >= room.user_limit:
             logger.warning(f"Limite de usuários atingido na sala {self.room_name}")
             await self.close(code=4003)
@@ -52,34 +53,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'is_admin': is_admin
             }))
 
-        cache.set(self.room_group_name, current_users_count + 1)
-
         if self.room_group_name not in self.connected_users:
-            self.connected_users[self.room_group_name] = set()
-        self.connected_users[self.room_group_name].add(self.user.username)
+            self.connected_users[self.room_group_name] = {}
+        self.connected_users[self.room_group_name][self.user.username] = self.channel_name
 
         await self.update_last_seen()
         logger.info(f"Usuário {self.user.username} conectou à sala {self.room_name}, last_seen atualizado")
 
-        if '-' not in self.room_name:
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'system_message',
-                    'message': f'{self.user.username} entrou na sala.'
-                }
-            )
+        if self.scope['session'].get('just_joined_room') == self.room_name:
+            if '-' not in self.room_name:
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'system_message',
+                        'message': f'{self.user.username} entrou na sala.'
+                    }
+                )
+            self.scope['session']['just_joined_room'] = None
 
         await self.broadcast_user_list()
 
     async def disconnect(self, close_code):
-        if self.room_group_name in self.connected_users:
-            self.connected_users[self.room_group_name].discard(self.user.username)
+        if self.room_group_name in self.connected_users and self.user.username in self.connected_users[self.room_group_name]:
+            del self.connected_users[self.room_group_name][self.user.username]
 
         await self.update_last_seen()
         logger.info(f"Usuário {self.user.username} desconectou da sala {self.room_name}, last_seen atualizado")
 
-        if '-' not in self.room_name:
+        if not self.left_explicitly and '-' not in self.room_name and not getattr(self, 'banned_user', False) and not getattr(self, 'kicked', False):
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -94,8 +95,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         try:
             text_data_json = json.loads(text_data)
+            message_type = text_data_json.get('type')
         except json.JSONDecodeError:
             logger.error(f"Erro ao decodificar JSON: {text_data}")
+            return
+
+        if message_type == 'leave_chat':
+            await self.leave_chat(text_data_json)
+            return
+        elif message_type == 'admin_action':
+            await self.handle_admin_action(text_data_json)
             return
 
         action = text_data_json.get('action')
@@ -152,7 +161,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         message = text_data_json.get('message')
         is_typing = text_data_json.get('is_typing')
         heartbeat = text_data_json.get('heartbeat')
-        admin_action = text_data_json.get('admin_action')
 
         if heartbeat:
             await self.update_last_seen()
@@ -168,6 +176,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.send(text_data=json.dumps({
                     'type': 'system_message',
                     'message': 'A sala está mutada. Apenas administradores podem enviar mensagens.'
+                }))
+                return
+
+            if room and await self.is_user_muted(room, self.user):
+                await self.send(text_data=json.dumps({
+                    'type': 'system_message',
+                    'message': 'Você foi silenciado nesta sala e não pode enviar mensagens.'
                 }))
                 return
 
@@ -202,62 +217,122 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'is_typing': is_typing
                 }
             )
-        elif admin_action:
+        
+        elif text_data_json.get('type') == 'chat_settings':
             room = await self.get_room()
             is_admin = await self.is_admin_or_creator(room, self.user)
             if not is_admin:
                 await self.send(text_data=json.dumps({
                     'type': 'system_message',
-                    'message': 'Você não tem permissão de administrador.'
+                    'message': 'Você não tem permissão para alterar as configurações da sala.'
                 }))
                 return
 
-            target_username = text_data_json.get('target')
+            new_room_name = text_data_json.get('room_name')
+            user_limit = text_data_json.get('user_limit')
 
-            if admin_action == 'kick' and target_username:
-                await self.kick_user(room, target_username)
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {'type': 'system_message', 'message': f'{target_username} foi expulso da sala pelo admin.'}
-                )
+            updated_room, error = await self.update_chat_settings(room, new_room_name, user_limit)
 
-            elif admin_action == 'promote' and target_username:
-                await self.promote_user(room, target_username)
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {'type': 'system_message', 'message': f'{target_username} foi promovido a administrador.'}
-                )
-                await self.broadcast_user_list()
-
-            elif admin_action == 'demote' and target_username:
-                await self.demote_user(room, target_username)
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {'type': 'system_message', 'message': f'{target_username} foi rebaixado de administrador.'}
-                )
-                await self.broadcast_user_list()
-
-            elif admin_action == 'mute':
-                await self.set_room_mute(room, True)
+            if error:
+                await self.send(text_data=json.dumps({
+                    'type': 'system_message',
+                    'message': error
+                }))
+            else:
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
-                        'type': 'mute_status_update',
-                        'is_muted': True,
-                        'message': 'A sala foi mutada por um administrador.'
+                        'type': 'system_message',
+                        'message': f'As configurações da sala foram atualizadas por {self.user.username}.'
                     }
                 )
+                # If room name changed, we might need to handle redirection or update the group name
+                if updated_room.name != self.room_name:
+                    # This part is complex and might require client-side redirection
+                    pass
 
-            elif admin_action == 'unmute':
-                await self.set_room_mute(room, False)
+    async def leave_chat(self, event):
+        self.left_explicitly = True
+        if '-' not in self.room_name:
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'system_message',
+                    'message': f'{self.user.username} saiu da sala.'
+                }
+            )
+        await self.broadcast_user_list()
+
+    async def handle_admin_action(self, data):
+        room = await self.get_room()
+        is_admin = await self.is_admin_or_creator(room, self.user)
+        if not is_admin:
+            await self.send(text_data=json.dumps({
+                'type': 'system_message',
+                'message': 'Você não tem permissão de administrador.'
+            }))
+            return
+
+        action = data.get('action')
+        target_username = data.get('target')
+
+        if action == 'kick' and target_username:
+            await self.kick_user(room, target_username)
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {'type': 'system_message', 'message': f'{target_username} foi expulso da sala.'}
+            )
+            await self.broadcast_user_list()
+
+        elif action == 'promote' and target_username:
+            await self.promote_user(room, target_username)
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {'type': 'system_message', 'message': f'{target_username} foi promovido a administrador.'}
+            )
+            await self.broadcast_user_list()
+
+        elif action == 'demote' and target_username:
+            await self.demote_user(room, target_username)
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {'type': 'system_message', 'message': f'{target_username} foi rebaixado para membro.'}
+            )
+            await self.broadcast_user_list()
+
+        elif action == 'mute_user' and target_username:
+            try:
+                target_user = await database_sync_to_async(User.objects.get)(username=target_username)
+                mute_instance, created = await database_sync_to_async(ChatRoomMute.objects.get_or_create)(room=room, muted_user=target_user)
+                
+                if not created:
+                    await database_sync_to_async(mute_instance.delete)()
+                    message = f'{target_username} foi desmutado.'
+                else:
+                    message = f'{target_username} foi silenciado.'
+
                 await self.channel_layer.group_send(
                     self.room_group_name,
-                    {
-                        'type': 'mute_status_update',
-                        'is_muted': False,
-                        'message': 'A sala foi desmutada por um administrador.'
-                    }
+                    {'type': 'system_message', 'message': message}
                 )
+                await self.broadcast_user_list() # Update user list to reflect mute status
+            except User.DoesNotExist:
+                await self.send(text_data=json.dumps({
+                    'type': 'system_message',
+                    'message': f'Usuário {target_username} não encontrado.'
+                }))
+
+        elif action == 'toggle_mute':
+            room.is_muted = not room.is_muted
+            await database_sync_to_async(room.save)()
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'mute_status_update',
+                    'is_muted': room.is_muted,
+                    'message': f'A sala foi {"mutada" if room.is_muted else "desmutada"} por um administrador.'
+                }
+            )
 
     async def chat_message(self, event): await self.send(text_data=json.dumps(event))
     async def system_message(self, event): await self.send(text_data=json.dumps(event))
@@ -282,8 +357,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'is_admin': event.get('is_admin')
             }))
 
+    async def force_disconnect(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'system_message',
+            'message': 'Você foi expulso da sala.'
+        }))
+        self.kicked = True
+        await self.close(code=4001)
+
     async def broadcast_user_list(self):
-        connected_usernames = self.connected_users.get(self.room_group_name, set())
+        connected_usernames = self.connected_users.get(self.room_group_name, {}).keys()
         profiles = await self.get_profiles_in_room(connected_usernames)
         await self.channel_layer.group_send(
             self.room_group_name, {
@@ -302,8 +385,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         try:
             room = ChatRoom.objects.get(name=self.room_name)
+            muted_users = set(ChatRoomMute.objects.filter(room=room).values_list('muted_user__username', flat=True))
         except ChatRoom.DoesNotExist:
             room = None
+            muted_users = set()
 
         for username in usernames:
             try:
@@ -312,6 +397,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 is_online = (timezone.now() - last_seen).total_seconds() < 45 if last_seen else False
                 is_creator = room and room.creator == user
                 is_admin = room and user in room.admins.all()
+                is_muted = username in muted_users
 
                 user_list.append({
                     'username': user.username,
@@ -319,7 +405,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'is_online': is_online, 
                     'last_seen': last_seen.strftime('%d/%m às %H:%M') if last_seen else 'Nunca',
                     'is_creator': is_creator,
-                    'is_admin': is_admin
+                    'is_admin': is_admin,
+                    'is_muted': is_muted
                 })
             except (User.DoesNotExist, Profile.DoesNotExist): continue
         return user_list
@@ -363,11 +450,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return ChatRoomBan.objects.filter(room=room, banned_user=user).exists()
 
     @database_sync_to_async
-    def kick_user(self, room, target_username):
+    def is_user_muted(self, room, user):
+        if room is None:
+            return False
+        return ChatRoomMute.objects.filter(room=room, muted_user=user).exists()
+
+    async def kick_user(self, room, target_username):
         if room is None: return
         try:
-            target_user = User.objects.get(username=target_username)
-            ChatRoomBan.objects.get_or_create(room=room, banned_user=target_user)
+            target_user = await database_sync_to_async(User.objects.get)(username=target_username)
+            await database_sync_to_async(ChatRoomBan.objects.get_or_create)(room=room, banned_user=target_user)
+            
+            target_channel_name = self.connected_users.get(self.room_group_name, {}).get(target_username)
+            if target_channel_name:
+                # Remove the user from the list of connected users
+                if self.room_group_name in self.connected_users and target_username in self.connected_users[self.room_group_name]:
+                    del self.connected_users[self.room_group_name][target_username]
+                
+                await self.channel_layer.send(
+                    target_channel_name,
+                    {
+                        'type': 'force_disconnect'
+                    }
+                )
         except User.DoesNotExist: pass
 
     @database_sync_to_async
@@ -460,3 +565,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except ChatMessage.DoesNotExist:
             logger.warning(f"Tentativa de apagar mensagem inexistente com ID {message_id}")
             return False, "Mensagem não encontrada."
+
+    @database_sync_to_async
+    def update_chat_settings(self, room, new_name, user_limit):
+        if not room:
+            return None, "Sala não encontrada."
+
+        if new_name:
+            room.name = new_name
+        if user_limit is not None:
+            try:
+                room.user_limit = int(user_limit)
+            except (ValueError, TypeError):
+                return None, "Limite de usuários inválido."
+        
+        room.save()
+        return room, None

@@ -5,9 +5,11 @@ from django.contrib import messages
 from django.core.cache import cache
 from django.db.models import Q
 from .models import ChatMessage, Profile, User, ChatRoom
-from .forms import UserUpdateForm, ProfileUpdateForm, RoomCreationForm, RoomPasswordForm, CustomUserCreationForm
+from .forms import UserUpdateForm, ProfileUpdateForm, RoomCreationForm, RoomPasswordForm, UsernameSignUpForm, EmailSignUpForm
 from django.http import JsonResponse
 from django.utils import timezone
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 def index_view(request):
     form = RoomCreationForm()
@@ -21,7 +23,7 @@ def index_view(request):
             room.creator = request.user
             room.save()
             messages.success(request, f"Sala '{room.name}' criada com sucesso!")
-            return redirect('chat:chat-room', room_name=room.name)
+            return redirect('chat:chat_room', room_name=room.name)
 
     public_rooms = ChatRoom.objects.all().order_by('-created_at')
     for room in public_rooms:
@@ -38,7 +40,11 @@ def index_view(request):
 
         for room_name in dm_room_names:
             participants = room_name.split('-')
-            other_username = participants[0] if participants[1] == request.user.username else participants[1]
+            # A more robust way to find the other user in the DM
+            other_username_set = set(participants) - {request.user.username}
+            if not other_username_set:
+                continue # Skip if the room name is malformed (e.g., just the user's own name)
+            other_username = other_username_set.pop()
             try:
                 other_user_profile = Profile.objects.get(user__username=other_username)
                 private_chats.append(other_user_profile)
@@ -48,9 +54,40 @@ def index_view(request):
     context = {
         'public_rooms': public_rooms,
         'private_chats': private_chats,
-        'form': form
+        'form': form,
+        'joined_rooms': request.session.get('joined_rooms', [])
     }
     return render(request, 'index.html', context)
+
+@login_required
+def join_room(request, room_name):
+    joined_rooms = request.session.get('joined_rooms', [])
+    if room_name not in joined_rooms:
+        joined_rooms.append(room_name)
+        request.session['joined_rooms'] = joined_rooms
+    request.session['just_joined_room'] = room_name
+    return redirect('chat:chat_room', room_name=room_name)
+
+@login_required
+def leave_room(request, room_name):
+    joined_rooms = request.session.get('joined_rooms', [])
+    if room_name in joined_rooms:
+        joined_rooms.remove(room_name)
+        request.session['joined_rooms'] = joined_rooms
+
+    channel_layer = get_channel_layer()
+    safe_room_name = ''.join(e for e in room_name if e.isalnum() or e in ['-', '_']).lower()
+    room_group_name = f'chat_{safe_room_name}'
+
+    async_to_sync(channel_layer.group_send)(
+        room_group_name,
+        {
+            'type': 'system_message',
+            'message': f'{request.user.username} saiu da sala.'
+        }
+    )
+
+    return redirect('index')
 
 @login_required
 def chat_room_view(request, room_name):
@@ -85,7 +122,7 @@ def chat_room_view(request, room_name):
                     authorized_rooms = request.session.get('authorized_rooms', [])
                     authorized_rooms.append(room.name)
                     request.session['authorized_rooms'] = authorized_rooms
-                    return redirect('chat:chat-room', room_name=room.name)
+                    return redirect('chat:chat_room', room_name=room.name)
                 else:
                     messages.error(request, "Senha incorreta!")
             return render(request, 'password_prompt.html', {'room': room, 'form': RoomPasswordForm()})
@@ -143,16 +180,33 @@ def room_status_view(request, room_name):
 def register_view(request):
     if request.user.is_authenticated:
         return redirect('index')
+
     if request.method == 'POST':
-        form = CustomUserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, 'Cadastro realizado com sucesso! Você já está logado.')
-            return redirect('index')
+        form_type = request.POST.get('form_type')
+        if form_type == 'username':
+            form = UsernameSignUpForm(request.POST)
+            email_form = EmailSignUpForm()
+            if form.is_valid():
+                user = form.save()
+                login(request, user, backend='chat.backends.EmailOrUsernameModelBackend')
+                messages.success(request, 'Cadastro realizado com sucesso! Você já está logado.')
+                return redirect('index')
+        else:
+            email_form = EmailSignUpForm(request.POST)
+            form = UsernameSignUpForm()
+            if email_form.is_valid():
+                user = email_form.save()
+                login(request, user, backend='chat.backends.EmailOrUsernameModelBackend')
+                messages.success(request, 'Cadastro realizado com sucesso! Você já está logado.')
+                return redirect('index')
     else:
-        form = CustomUserCreationForm()
-    return render(request, 'register.html', {'form': form})
+        form = UsernameSignUpForm()
+        email_form = EmailSignUpForm()
+
+    return render(request, 'register.html', {
+        'form': form,
+        'email_form': email_form
+    })
 
 @login_required
 def profile_view(request):
@@ -177,6 +231,14 @@ def credits_view(request):
     return render(request, 'credits.html')
 
 @login_required
+def clear_chat(request, room_name):
+    messages_to_clear = ChatMessage.objects.filter(room_name=room_name)
+    for message in messages_to_clear:
+        message.deleted_by.add(request.user)
+    messages.success(request, "A conversa foi limpa para você.")
+    return redirect('chat:chat_room', room_name=room_name)
+
+@login_required
 def start_dm_view(request, username):
     try:
         other_user = User.objects.get(username=username)
@@ -190,7 +252,7 @@ def start_dm_view(request, username):
 
     usernames = sorted([request.user.username, other_user.username])
     room_name = '-'.join(usernames)
-    return redirect('chat:chat-room', room_name=room_name)
+    return redirect('chat:chat_room', room_name=room_name)
 
 @login_required
 def delete_room_view(request, room_name):

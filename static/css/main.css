@@ -40,6 +40,10 @@ body {
     min-height: 100vh;
     transition: background-color 0.3s ease, color 0.3s ease;
 }
+
+body.modal-open {
+    overflow-y: hidden;
+}
 .container { max-width: 1100px; width: 100%; margin: 2rem auto; padding: 0 20px; }
 
 /* --- Barra de Navegação e Rodapé --- */
@@ -93,6 +97,12 @@ input[type="file"] { color: var(--text-secondary); }
 input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #050505; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background-color 0.3s ease; margin-right: 1rem; }
 [data-theme="dark"] input[type="file"]::file-selector-button { background-color: #3a3b3c; color: #e4e6eb; }
 
+.profile-form-container fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
 /* --- Alertas de Mensagem --- */
 .alert { padding: 1rem; margin-bottom: 1rem; border-radius: 5px; border: 1px solid transparent; transition: opacity 0.5s ease-out; }
 .alert.fade-out { opacity: 0; }
@@ -135,6 +145,11 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 .room-link { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background-color: var(--bg-main); color: var(--text-main); text-decoration: none; border-radius: 6px; font-weight: 600; transition: background-color 0.3s ease, color 0.3s ease; }
 .room-link:hover { background-color: var(--primary-accent); color: white; }
 .room-link i { color: var(--text-secondary); }
+
+.join-leave-btn {
+    padding: 5px 10px;
+    font-size: 0.9rem;
+}
 
 /* --- Estilos para o "Olhinho" da Senha --- */
 .password-field-container { position: relative; }

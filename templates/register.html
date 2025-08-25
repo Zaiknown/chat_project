@@ -6,59 +6,119 @@
 <div class="form-card" style="max-width: 500px; margin: 2rem auto;">
     <h2 style="text-align: center; margin-bottom: 2rem;">Crie sua Conta</h2>
 
-    <form method="POST" novalidate>
-        {% csrf_token %}
+    <div class="nav-tabs">
+        <button class="tab-link active" onclick="openTab(event, 'username-register')">Registrar com Nome de Usuário</button>
+        <button class="tab-link" onclick="openTab(event, 'email-register')">Registrar com Email</button>
+    </div>
 
-        {% if form.non_field_errors %}
-            <div class="alert alert-danger">
-                {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+    <div id="username-register" class="tab-content" style="display: block;">
+        <form method="POST" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="username">
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label class="form-label" for="{{ form.username.id_for_label }}">Nome de Usuário:</label>
+                {{ form.username }}
+                {% if form.username.errors %}
+                    <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
+                        {% for error in form.username.errors %}<p>{{ error }}</p>{% endfor %}
+                    </div>
+                {% endif %}
             </div>
-        {% endif %}
 
-        <div class="form-group">
-            <label class="form-label" for="{{ form.username.id_for_label }}">Nome de Usuário:</label>
-            {{ form.username }}
-            {% if form.username.errors %}
-                <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
-                    {% for error in form.username.errors %}<p>{{ error }}</p>{% endfor %}
+            <div class="form-group">
+                <label class="form-label" for="{{ form.password1.id_for_label }}">Senha:</label>
+                {{ form.password1 }}
+                 {% if form.password1.errors %}
+                    <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
+                        {% for error in form.password1.errors %}<p>{{ error }}</p>{% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="{{ form.password2.id_for_label }}">Confirmação de senha:</label>
+                {{ form.password2 }}
+                 {% if form.password2.errors %}
+                    <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
+                        {% for error in form.password2.errors %}<p>{{ error }}</p>{% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn" style="margin-top: 1rem; width: 100%;">Cadastrar</button>
+        </form>
+    </div>
+
+    <div id="email-register" class="tab-content" style="display: none;">
+        <form method="POST" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="email">
+            {% if email_form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in email_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
                 </div>
             {% endif %}
-        </div>
 
-        <div class="form-group">
-            <label class="form-label" for="{{ form.email.id_for_label }}">Email:</label>
-            {{ form.email }}
-             {% if form.email.errors %}
-                <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
-                    {% for error in form.email.errors %}<p>{{ error }}</p>{% endfor %}
-                </div>
-            {% endif %}
-        </div>
+            <div class="form-group">
+                <label class="form-label" for="{{ email_form.email.id_for_label }}">Email:</label>
+                {{ email_form.email }}
+                 {% if email_form.email.errors %}
+                    <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
+                        {% for error in email_form.email.errors %}<p>{{ error }}</p>{% endfor %}
+                    </div>
+                {% endif %}
+            </div>
 
-        <div class="form-group">
-            <label class="form-label" for="{{ form.password1.id_for_label }}">Senha:</label>
-            {{ form.password1 }}
-             {% if form.password1.errors %}
-                <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
-                    {% for error in form.password1.errors %}<p>{{ error }}</p>{% endfor %}
-                </div>
-            {% endif %}
-        </div>
+            <div class="form-group">
+                <label class="form-label" for="{{ email_form.password1.id_for_label }}">Senha:</label>
+                {{ email_form.password1 }}
+                 {% if email_form.password1.errors %}
+                    <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
+                        {% for error in email_form.password1.errors %}<p>{{ error }}</p>{% endfor %}
+                    </div>
+                {% endif %}
+            </div>
 
-        <div class="form-group">
-            <label class="form-label" for="{{ form.password2.id_for_label }}">Confirmação de senha:</label>
-            {{ form.password2 }}
-             {% if form.password2.errors %}
-                <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
-                    {% for error in form.password2.errors %}<p>{{ error }}</p>{% endfor %}
-                </div>
-            {% endif %}
-        </div>
+            <div class="form-group">
+                <label class="form-label" for="{{ email_form.password2.id_for_label }}">Confirmação de senha:</label>
+                {{ email_form.password2 }}
+                 {% if email_form.password2.errors %}
+                    <div style="color: #d93025; font-size: 0.9rem; margin-top: 5px;">
+                        {% for error in email_form.password2.errors %}<p>{{ error }}</p>{% endfor %}
+                    </div>
+                {% endif %}
+            </div>
 
-        <button type="submit" class="btn" style="margin-top: 1rem; width: 100%;">Cadastrar</button>
-    </form>
+            <button type="submit" class="btn" style="margin-top: 1rem; width: 100%;">Cadastrar</button>
+        </form>
+    </div>
+
     <p style="margin-top: 1rem; text-align: center;">
         Já tem uma conta? <a href="{% url 'login' %}">Faça o login</a>
     </p>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openTab(evt, tabName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("tab-link");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.className += " active";
+    }
+</script>
 {% endblock %}
