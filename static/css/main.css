@@ -282,17 +282,57 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 }
 
 /* --- ESTILOS DE RESPONSIVIDADE --- */
+.navbar-toggler {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-main);
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+@media (max-width: 992px) {
+    .lobby-container {
+        grid-template-columns: 1fr;
+    }
+
+    .chat-page-container {
+        flex-direction: column;
+    }
+
+    .user-list-sidebar {
+        height: auto;
+        max-height: 250px;
+        overflow-y: auto;
+        margin-bottom: 1rem;
+    }
+}
+
 @media (max-width: 768px) {
     .container {
         margin: 1rem auto;
         padding: 0 15px;
     }
 
-    /* Ajustes na Barra de Navegação */
     .navbar .container {
+        flex-wrap: wrap;
+    }
+
+    .navbar-toggler {
+        display: block;
+    }
+
+    .navbar-collapse {
+        display: none;
+        width: 100%;
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
         gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .navbar-collapse.active {
+        display: flex;
     }
 
     .main-nav {
@@ -307,11 +347,12 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     }
 
     .user-info {
+        flex-direction: column;
+        align-items: stretch;
         width: 100%;
-        justify-content: space-between;
+        gap: 1rem;
     }
 
-    /* Ajustes nos Cards e Conteúdo Geral */
     .form-card, .content-card, .room-list-card, .create-room-card {
         padding: 1.5rem;
     }
@@ -320,12 +361,6 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
         font-size: 1.5rem !important;
     }
 
-    /* Ajustes no Lobby (index.html) */
-    .lobby-container {
-        grid-template-columns: 1fr;
-    }
-
-    /* Ajustes na Página de Perfil */
     .profile-container {
         flex-direction: column;
     }
@@ -334,23 +369,11 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
         align-self: center;
     }
 
-    /* Ajustes na Página de Chat */
-    .chat-page-container {
-        flex-direction: column;
-    }
-
-    .user-list-sidebar {
-        height: auto; /* Altura automática */
-        max-height: 200px; /* Altura máxima para não ocupar a tela toda */
-        overflow-y: auto;
-        margin-bottom: 1rem;
-    }
-
     .chat-container {
-        height: 65vh; /* Aumenta a altura do chat no mobile */
+        height: 70vh;
     }
 
     .chat-message {
-        max-width: 90%; /* Mensagens podem ser um pouco mais largas */
+        max-width: 90%;
     }
 }

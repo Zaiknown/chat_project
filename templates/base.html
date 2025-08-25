@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
     <title>{% block title %}Projeto de Chat{% endblock %}</title>
     <link rel="icon" type="image/png" href="{% static 'ChatGPT_Image_2_de_ago._de_2025_16_49_41.pgn' %}">
@@ -15,28 +16,33 @@
 <nav class="navbar">
     <div class="container">
         <a class="navbar-brand" href="{% url 'index' %}">Chat em Tempo Real</a>
+        <button class="navbar-toggler" type="button" aria-label="Toggle navigation">
+            <i class="fas fa-bars"></i>
+        </button>
         
-        <ul class="navbar-nav main-nav">
-            <li class="nav-item"><a href="{% url 'index' %}" class="nav-link">Salas</a></li>
-            <li class="nav-item"><a href="{% url 'credits' %}" class="nav-link">Sobre o Criador</a></li>
-            {% if user.is_authenticated %}
-                <li class="nav-item"><a href="{% url 'profile' %}" class="nav-link">Meu Perfil</a></li>
-            {% endif %}
-        </ul>
+        <div class="navbar-collapse">
+            <ul class="navbar-nav main-nav">
+                <li class="nav-item"><a href="{% url 'index' %}" class="nav-link">Salas</a></li>
+                <li class="nav-item"><a href="{% url 'credits' %}" class="nav-link">Sobre o Criador</a></li>
+                {% if user.is_authenticated %}
+                    <li class="nav-item"><a href="{% url 'profile' %}" class="nav-link">Meu Perfil</a></li>
+                {% endif %}
+            </ul>
 
-        <div class="user-info">
-            <button id="theme-toggle" class="btn-link" title="Mudar tema" style="font-size: 1.2rem;">
-                <i class="fas fa-moon"></i>
-            </button>
-            {% if user.is_authenticated %}
-                <form action="{% url 'logout' %}" method="POST" style="display: inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn-link">Sair</button>
-                </form>
-            {% else %}
-                <a href="{% url 'register' %}" class="btn-link">Cadastre-se</a>
-                <a href="{% url 'login' %}" class="btn">Entrar</a>
-            {% endif %}
+            <div class="user-info">
+                <button id="theme-toggle" class="btn-link" title="Mudar tema" style="font-size: 1.2rem;">
+                    <i class="fas fa-moon"></i>
+                </button>
+                {% if user.is_authenticated %}
+                    <form action="{% url 'logout' %}" method="POST" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-link">Sair</button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'register' %}" class="btn-link">Cadastre-se</a>
+                    <a href="{% url 'login' %}" class="btn">Entrar</a>
+                {% endif %}
+            </div>
         </div>
     </div>
 </nav>
