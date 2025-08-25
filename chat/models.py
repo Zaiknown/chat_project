@@ -43,3 +43,11 @@ class ChatRoomBan(models.Model):
 
     class Meta:
         unique_together = ('room', 'banned_user')
+
+class ChatRoomMute(models.Model):
+    room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE)
+    muted_user = models.ForeignKey(User, on_delete=models.CASCADE)
+    muted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('room', 'muted_user')

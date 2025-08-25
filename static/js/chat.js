@@ -32,6 +32,56 @@ document.addEventListener('DOMContentLoaded', () => {
     const replyBarMessage = document.getElementById('reply-bar-message');
     let replyingToId = null;
 
+    const settingsBtn = document.getElementById('settings-btn');
+    const chatSettingsModal = document.getElementById('chatSettingsModal');
+    const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
+    const chatSettingsForm = document.getElementById('chat-settings-form');
+    const userManagementList = document.getElementById('user-management-list');
+    const muteRoomBtn = document.getElementById('mute-room-btn');
+
+    let currentUserList = [];
+
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            chatSettingsModal.style.display = 'block';
+            document.body.classList.add('modal-open');
+            updateUserManagementList(currentUserList);
+        });
+    }
+
+    if (cancelSettingsBtn) {
+        cancelSettingsBtn.addEventListener('click', () => {
+            chatSettingsModal.style.display = 'none';
+            document.body.classList.remove('modal-open');
+        });
+    }
+
+    if (chatSettingsForm) {
+        chatSettingsForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const roomNameValue = document.getElementById('room-name-input').value;
+            const userLimit = document.getElementById('user-limit-input').value;
+
+            chatSocket.send(JSON.stringify({
+                'type': 'chat_settings',
+                'room_name': roomNameValue,
+                'user_limit': userLimit
+            }));
+
+            chatSettingsModal.style.display = 'none';
+            document.body.classList.remove('modal-open');
+        });
+    }
+
+    if (muteRoomBtn) {
+        muteRoomBtn.addEventListener('click', () => {
+            chatSocket.send(JSON.stringify({
+                'type': 'admin_action',
+                'action': 'toggle_mute'
+            }));
+        });
+    }
+
     // Estado do WebSocket e do Chat
     let typingTimer;
     const TYPING_TIMER_LENGTH = 2000;
@@ -39,6 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let typingUsers = new Set();
     let isRoomMuted = false;
     let currentUserIsAdmin = false;
+    let currentUserIsMuted = false;
     let chatSocket;
 
     // --- Conexão WebSocket ---
@@ -85,6 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 isRoomMuted = data.is_muted;
                 addSystemMessage(data.message);
                 updateInputState();
+                if (muteRoomBtn) {
+                    muteRoomBtn.textContent = isRoomMuted ? 'Desmutar Sala' : 'Silenciar Sala';
+                }
                 break;
             case 'admin_status_update':
                 currentUserIsAdmin = data.is_admin;
@@ -103,7 +157,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleTypingSignal(data);
                 break;
             case 'user_list_update':
+                currentUserList = data.users;
+                const currentUser = currentUserList.find(u => u.username === userName);
+                if (currentUser) {
+                    currentUserIsMuted = currentUser.is_muted;
+                }
                 updateUserList(data.users);
+                updateUserManagementList(data.users);
+                updateInputState();
                 break;
             case 'user_status_update':
                 updateUserStatus(data);
@@ -244,7 +305,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             ? `<a href="#" class="admin-action-btn" data-action="demote" data-target="${user.username}">Rebaixar</a>`
                             : `<a href="#" class="admin-action-btn" data-action="promote" data-target="${user.username}">Promover</a>`;
                         const kickAction = `<a href="#" class="admin-action-btn" data-action="kick" data-target="${user.username}">Expulsar</a>`;
-                        adminActions = `${promoteAction}${kickAction}`;
+                        const muteAction = user.is_muted
+                            ? `<a href="#" class="admin-action-btn" data-action="mute_user" data-target="${user.username}">Remover Silêncio</a>`
+                            : `<a href="#" class="admin-action-btn" data-action="mute_user" data-target="${user.username}">Silenciar</a>`;
+                        adminActions = `${promoteAction}${kickAction}${muteAction}`;
                     }
 
                     actionsHtml = `
@@ -285,11 +349,80 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updateUserManagementList(users) {
+        if (!userManagementList) return;
+        userManagementList.innerHTML = '';
+
+        users.forEach(user => {
+            if (user.username === userName) return; // Don't show current user in management list
+
+            const userLi = document.createElement('li');
+            userLi.className = 'list-group-item d-flex justify-content-between align-items-center';
+            userLi.setAttribute('data-username', user.username);
+
+            let adminIndicator = '';
+            if (user.is_creator) {
+                adminIndicator = '<span class="admin-badge creator-badge" title="Criador da Sala">👑</span>';
+            } else if (user.is_admin) {
+                adminIndicator = '<span class="admin-badge" title="Administrador">🛡️</span>';
+            }
+
+            let adminActions = '';
+            if (currentUserIsAdmin && !user.is_creator) {
+                const promoteAction = user.is_admin
+                    ? `<button class="btn btn-sm btn-warning admin-action-btn" data-action="demote" data-target="${user.username}">Rebaixar</button>`
+                    : `<button class="btn btn-sm btn-success admin-action-btn" data-action="promote" data-target="${user.username}">Promover</button>`;
+                const kickAction = `<button class="btn btn-sm btn-danger admin-action-btn" data-action="kick" data-target="${user.username}">Expulsar</button>`;
+                const muteAction = user.is_muted
+                    ? `<button class="btn btn-sm btn-info admin-action-btn" data-action="mute_user" data-target="${user.username}">Remover Silêncio</button>`
+                    : `<button class="btn btn-sm btn-secondary admin-action-btn" data-action="mute_user" data-target="${user.username}">Silenciar</button>`;
+                adminActions = `${promoteAction} ${kickAction} ${muteAction}`;
+            }
+
+            userLi.innerHTML = `
+                <div>
+                    <img src="${user.avatar_url}" class="chat-avatar" style="width: 25px; height: 25px; border-radius: 50%; margin-right: 10px;">
+                    <span>${user.username} ${adminIndicator}</span>
+                </div>
+                <div>
+                    ${adminActions}
+                </div>
+            `;
+            userManagementList.appendChild(userLi);
+        });
+    }
+
+    if (userManagementList) {
+        userManagementList.addEventListener('click', (e) => {
+            const actionBtn = e.target.closest('.admin-action-btn');
+            if (actionBtn) {
+                e.preventDefault();
+                const { action, target } = actionBtn.dataset;
+                const actionText = actionBtn.textContent;
+                showConfirmationModal(`Tem certeza que deseja "${actionText}" o usuário "${target}"?`, () => {
+                    chatSocket.send(JSON.stringify({ 'type': 'admin_action', 'action': action, 'target': target }));
+                });
+            }
+        });
+    }
+
     function updateInputState() {
         if (!messageInput) return;
-        const canSpeak = !isRoomMuted || currentUserIsAdmin;
-        messageInput.disabled = !canSpeak;
-        messageInput.placeholder = canSpeak ? 'Digite sua mensagem...' : 'Sala silenciada.';
+
+        const isAdmin = currentUserIsAdmin;
+        const roomMuted = isRoomMuted;
+        const userMuted = currentUserIsMuted;
+
+        if (userMuted && !isAdmin) {
+            messageInput.disabled = true;
+            messageInput.placeholder = 'Você foi silenciado.';
+        } else if (roomMuted && !isAdmin) {
+            messageInput.disabled = true;
+            messageInput.placeholder = 'Sala silenciada.';
+        } else {
+            messageInput.disabled = false;
+            messageInput.placeholder = 'Digite sua mensagem...';
+        }
     }
 
     function addChatMessage(data) {
@@ -455,6 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const userLink = moreOptionsBtn.closest('.user-list-link');
                 const isVisible = dropdown.classList.contains('visible');
 
+                // Fecha todos os outros menus antes de avaliar este
                 document.querySelectorAll('.actions-dropdown.visible').forEach(d => d.classList.remove('visible'));
                 document.querySelectorAll('.user-list-link.menu-open').forEach(link => link.classList.remove('menu-open'));
 
@@ -462,18 +596,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     dropdown.classList.add('visible');
                     userLink.classList.add('menu-open');
                 }
+                return; 
+            }
 
-            } else if (actionBtn) {
+            if (actionBtn) {
                 e.preventDefault();
                 const { action, target } = actionBtn.dataset;
                 const actionText = actionBtn.textContent;
                 showConfirmationModal(`Tem certeza que deseja "${actionText}" o usuário "${target}"?`, () => {
-                    chatSocket.send(JSON.stringify({ 'admin_action': action, 'target': target }));
+                    chatSocket.send(JSON.stringify({ 'type': 'admin_action', 'action': action, 'target': target }));
                 });
+                return;
+            }
 
-            } else if (messageBtn) {
-                // A ação de mensagem agora é um link direto, então o comportamento padrão do navegador (navegar para o href) é suficiente.
-                // Nenhuma ação extra de JavaScript é necessária aqui.
+            if (messageBtn) {
+                // A navegação é tratada pelo href do link
+                return;
             }
         });
     }
@@ -563,7 +701,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (modal) {
         cancelBtn.onclick = () => modal.style.display = 'none';
-        window.onclick = (e) => { if (e.target == modal) modal.style.display = 'none'; };
+        window.onclick = (e) => { 
+            if (e.target == modal) modal.style.display = 'none'; 
+            if (e.target == chatSettingsModal) {
+                chatSettingsModal.style.display = 'none';
+                document.body.classList.remove('modal-open');
+            }
+        };
 
         deleteForMeBtn.onclick = () => {
             if (messageToDeleteId) {
@@ -606,6 +750,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (replyBar.style.display !== 'none') {
                 replyingToId = null;
                 replyBar.style.display = 'none';
+            }
+            if (chatSettingsModal.style.display === 'block') {
+                chatSettingsModal.style.display = 'none';
+                document.body.classList.remove('modal-open');
             }
         }
     });
@@ -686,4 +834,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     `;
     document.head.appendChild(style);
+
+    const clearChatBtn = document.getElementById('clear-chat-btn');
+    if (clearChatBtn) {
+        clearChatBtn.addEventListener('click', () => {
+            showConfirmationModal('Tem certeza que deseja limpar todo o histórico desta conversa? Esta ação não pode ser desfeita.', () => {
+                window.location.href = `/chat/clear_chat/${roomName}/`;
+            });
+        });
+    }
 });
