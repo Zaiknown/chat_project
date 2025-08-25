@@ -143,7 +143,7 @@ def chat_room_view(request, room_name):
             'id': message.id,
             'author_username': message.author.username,
             'content': message.content,
-            'timestamp': message.timestamp.strftime('%H:%M'),
+            'timestamp': timezone.localtime(message.timestamp).strftime('%H:%M'),
             'avatar_url': message.author.profile.avatar.url,
             'is_sent_by_user': message.author == request.user,
             'parent': parent_info,

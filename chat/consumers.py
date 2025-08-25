@@ -210,7 +210,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'id': chat_message_obj.id,
                     'message': chat_message_obj.content,
                     'username': username,
-                    'timestamp': chat_message_obj.timestamp.strftime('%H:%M'),
+                    'timestamp': timezone.localtime(chat_message_obj.timestamp).strftime('%H:%M'),
                     'avatar_url': avatar_url,
                     'parent': parent_info,
                 }
