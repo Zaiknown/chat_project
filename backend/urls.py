@@ -1,11 +1,8 @@
 from django.contrib import admin
-from django.urls import path, include, re_path
+from django.urls import path, include
 from chat import views as chat_views
 from django.contrib.auth import views as auth_views
-from django.conf import settings # ADICIONE ESTA LINHA
-from django.conf.urls.static import static # ADICIONE ESTA LINHA
 from chat.forms import CustomAuthenticationForm
-from django.views.static import serve # ADICIONE esta linha
 
 urlpatterns = [
     path('', chat_views.index_view, name='index'),
@@ -17,8 +14,4 @@ urlpatterns = [
     path('credits/', chat_views.credits_view, name='credits'),
     path('heartbeat/', chat_views.heartbeat_view, name='heartbeat'),
     path('chat/', include('chat.urls', namespace='chat')),
-    re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
 ]
-
-if settings.DEBUG is False:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
