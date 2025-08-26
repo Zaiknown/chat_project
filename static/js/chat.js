@@ -357,6 +357,47 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const style = document.createElement('style');
+    style.innerHTML = `
+        #confirmation-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 2000;
+        }
+
+        .user-list-sidebar {
+            background-color: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: flex; /* Adicionado para controle de layout interno */
+            flex-direction: column; /* Organiza os itens verticalmente */
+            height: 75vh; /* Altura fixa para ocupar a lateral da tela */
+        }
+
+        .user-list-sidebar h4 {
+            margin-top: 0;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        #user-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto; /* Adiciona rolagem se a lista for longa */
+            flex-grow: 1; /* Faz a lista ocupar o espaço restante */
+        }
+
+        #user-list li {
+            margin-bottom: 0.5rem; /* Espaçamento entre os usuários */
+        }
+    `;
+    document.head.appendChild(style);
+
     function updateInputState() {
         if (!messageInput) return;
         const isAdmin = currentUserIsAdmin;
