@@ -10,14 +10,14 @@ def generate_unique_slugs(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('chat', '0015_alter_profile_avatar'),
+        ('chat', '0015_alter_profile_avatar'),  # ajuste conforme sua última migration
     ]
 
     operations = [
         migrations.AddField(
             model_name='chatroom',
             name='slug',
-            field=models.SlugField(blank=True, max_length=100, unique=True),
+            field=models.SlugField(blank=True, null=True, max_length=100),
         ),
         migrations.RunPython(generate_unique_slugs),
     ]
