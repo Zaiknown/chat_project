@@ -37,17 +37,15 @@ def index_view(request):
     if request.user.is_authenticated:
         # Find all unique room_names for DMs involving the current user
         dm_room_names = ChatMessage.objects.filter(
-            room_name__startswith='dm-'
+            Q(author=request.user) | Q(room_name__contains=f"{request.user.username}-") | Q(room_name__endswith=f"-{request.user.username}")
         ).filter(
-            Q(author=request.user) | Q(room_name__contains=f"-{request.user.username}") | Q(room_name__endswith=f"-{request.user.username}")
+            room_name__contains='-'
         ).values_list('room_name', flat=True).distinct()
 
         other_usernames = set()
         for name in dm_room_names:
-            # Remove 'dm-' prefix and split
-            participant_string = name[3:]
-            parts = participant_string.split('-')
-            
+            parts = name.split('-')
+            # This logic assumes only two participants and usernames don't contain '-'
             if parts[0] == request.user.username:
                 other_usernames.add(parts[1])
             else:
@@ -107,14 +105,13 @@ def leave_room(request, room_slug):
 
 @login_required
 def chat_room_view(request, room_slug):
-    is_dm = room_slug.startswith('dm-')
+    is_dm = '-' in room_slug
     other_user_profile = None
     room = None
     access_token = None
 
     if is_dm:
-        participant_string = room_slug[3:]
-        participants = participant_string.split('-')
+        participants = room_slug.split('-')
         
         if request.user.username not in participants:
             messages.error(request, "Você não tem permissão para entrar nesta conversa.")
@@ -199,24 +196,15 @@ def chat_room_view(request, room_slug):
     return render(request, 'chat_room.html', context)
 
 @login_required
-def start_dm_view(request, username):
+def room_status_view(request, room_slug):
+    if '-' in room_slug:
+        return JsonResponse({'is_muted': False})
     try:
-        other_user = User.objects.get(username=username)
-    except User.DoesNotExist:
-        messages.error(request, "Usuário não encontrado.")
-        return redirect('index')
+        room = ChatRoom.objects.get(slug=room_slug)
+        return JsonResponse({'is_muted': room.is_muted})
+    except ChatRoom.DoesNotExist:
+        return JsonResponse({'error': 'Sala não encontrada'}, status=404)
 
-    if request.user == other_user:
-        messages.warning(request, "Você não pode iniciar uma conversa consigo mesmo.")
-        return redirect('index')
-
-    # Create a unique room slug with a 'dm-' prefix
-    usernames = sorted([request.user.username, other_user.username])
-    room_slug = f"dm-{''.join(usernames)}"
-    
-    return redirect('chat:chat_room', room_slug=room_slug)
-
-# ... (o resto das suas views, como register_view, profile_view, etc., permanecem as mesmas)
 def register_view(request):
     if request.user.is_authenticated:
         return redirect('index')
@@ -272,19 +260,34 @@ def credits_view(request):
 
 @login_required
 def clear_chat(request, room_slug):
-    room_name = room_slug
-    if not room_slug.startswith('dm-'):
-        try:
-            room = ChatRoom.objects.get(slug=room_slug)
-            room_name = room.name
-        except ChatRoom.DoesNotExist:
-            messages.error(request, "A sala que você tentou limpar não existe.")
-            return redirect('index')
+    try:
+        room = ChatRoom.objects.get(slug=room_slug)
+    except ChatRoom.DoesNotExist:
+        messages.error(request, "A sala que você tentou limpar não existe.")
+        return redirect('index')
 
-    messages_to_clear = ChatMessage.objects.filter(room_name=room_name)
+    messages_to_clear = ChatMessage.objects.filter(room_name=room.name)
     for message in messages_to_clear:
         message.deleted_by.add(request.user)
     messages.success(request, "A conversa foi limpa para você.")
+    return redirect('chat:chat_room', room_slug=room.slug)
+
+@login_required
+def start_dm_view(request, username):
+    try:
+        other_user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        messages.error(request, "Usuário não encontrado.")
+        return redirect('index')
+
+    if request.user == other_user:
+        messages.warning(request, "Você não pode iniciar uma conversa consigo mesmo.")
+        return redirect('index')
+
+    # Use usernames directly, sorted, to create a consistent room identifier
+    usernames = sorted([request.user.username, other_user.username])
+    room_slug = '-'.join(usernames)
+    
     return redirect('chat:chat_room', room_slug=room_slug)
 
 @login_required
@@ -306,11 +309,8 @@ def delete_room_view(request, room_slug):
 @login_required
 def heartbeat_view(request):
     if request.method == 'POST':
-        try:
-            profile = Profile.objects.get(user=request.user)
-            profile.last_seen = timezone.now()
-            profile.save()
-            return JsonResponse({'status': 'ok'})
-        except Profile.DoesNotExist:
-            return JsonResponse({'status': 'Profile not found'}, status=404)
+        profile = Profile.objects.get(user=request.user)
+        profile.last_seen = timezone.now()
+        profile.save()
+        return JsonResponse({'status': 'ok'})
     return JsonResponse({'status': 'bad request'}, status=400)
