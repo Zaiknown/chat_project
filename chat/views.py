@@ -1,3 +1,4 @@
+import secrets
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login
@@ -94,6 +95,7 @@ def chat_room_view(request, room_name):
     is_dm = '-' in room_name
     other_user_profile = None
     room = None
+    access_token = None
 
     if is_dm:
         participants = room_name.split('-')
@@ -115,17 +117,31 @@ def chat_room_view(request, room_name):
             return redirect('index')
 
     if room and room.password:
-        if room.name not in request.session.get('authorized_rooms', []):
+        authorized_rooms = request.session.get('authorized_rooms', [])
+        
+        if room.name not in authorized_rooms:
             if request.method == 'POST':
                 form = RoomPasswordForm(request.POST)
                 if form.is_valid() and form.cleaned_data['password'] == room.password:
-                    authorized_rooms = request.session.get('authorized_rooms', [])
                     authorized_rooms.append(room.name)
                     request.session['authorized_rooms'] = authorized_rooms
+                    
+                    token = secrets.token_urlsafe(16)
+                    room_tokens = request.session.get('room_tokens', {})
+                    room_tokens[room.name] = token
+                    request.session['room_tokens'] = room_tokens
+                    
                     return redirect('chat:chat_room', room_name=room.name)
                 else:
                     messages.error(request, "Senha incorreta!")
             return render(request, 'password_prompt.html', {'room': room, 'form': RoomPasswordForm()})
+        
+        room_tokens = request.session.get('room_tokens', {})
+        access_token = room_tokens.get(room.name)
+        if not access_token:
+            access_token = secrets.token_urlsafe(16)
+            room_tokens[room.name] = access_token
+            request.session['room_tokens'] = room_tokens
         
 
     chat_messages_qs = ChatMessage.objects.filter(room_name=room_name).select_related('author__profile', 'parent__author').exclude(deleted_by=request.user).order_by('timestamp')[:50]
@@ -158,7 +174,8 @@ def chat_room_view(request, room_name):
         'is_dm': is_dm,
         'other_user_profile': other_user_profile,
         'room': room,
-        'is_admin': room.creator == request.user or request.user in room.admins.all() if room else False
+        'is_admin': room.creator == request.user or request.user in room.admins.all() if room else False,
+        'access_token': access_token,
     }
     return render(request, 'chat_room.html', context)
 

@@ -285,6 +285,7 @@
 {{ room_name|json_script:"room-name" }}
 {{ request.user.username|json_script:"user-username" }}
 {{ is_admin|json_script:"is-admin" }}
+{{ access_token|json_script:"access-token" }}
 {% endblock %}
 
 {% block extra_js %}

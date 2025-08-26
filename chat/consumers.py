@@ -1,4 +1,6 @@
 import json
+import secrets
+from urllib.parse import parse_qs
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.core.cache import cache
@@ -26,10 +28,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         room = await self.get_room()
         if room and room.password:
-            authorized_rooms = self.scope['session'].get('authorized_rooms', [])
-            if self.room_name not in authorized_rooms:
-                await self.close(code=4002)
-                return
+            authorized_in_session = self.room_name in self.scope.get('session', {}).get('authorized_rooms', [])
+            
+            if not authorized_in_session:
+                try:
+                    query_string = self.scope.get('query_string', b'').decode()
+                    query_params = parse_qs(query_string)
+                    token_from_client = query_params.get('token', [None])[0]
+
+                    if not token_from_client:
+                        await self.close(code=4002)
+                        return
+
+                    room_tokens = self.scope.get('session', {}).get('room_tokens', {})
+                    expected_token = room_tokens.get(self.room_name)
+
+                    if not expected_token or not secrets.compare_digest(token_from_client, expected_token):
+                        await self.close(code=4002)
+                        return
+                except Exception:
+                    await self.close(code=4002)
+                    return
 
         if room is None and '-' not in self.room_name:
             logger.warning(f"Sala {self.room_name} não encontrada")
