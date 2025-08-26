@@ -33,14 +33,16 @@ class Profile(models.Model):
         return f'Perfil de {self.user.username}'
 
 class ChatRoom(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    slug = models.SlugField(unique=True, max_length=100, blank=True)
-    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_rooms')
-    created_at = models.DateTimeField(auto_now_add=True)
-    password = models.CharField(max_length=50, blank=True, null=True)
-    user_limit = models.IntegerField(default=10)
-    is_muted = models.BooleanField(default=False)
-    admins = models.ManyToManyField(User, related_name='admin_of_rooms', blank=True)
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(unique=True, max_length=100)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
 
     def save(self, *args, **kwargs):
         if not self.slug:
