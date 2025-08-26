@@ -1,16 +1,16 @@
-# chat/urls.py
-from django.urls import path
+# ARQUIVO: chat/urls.py
+
+from django.urls import path, re_path
 from . import views
 
-app_name = 'chat' # Essencial para o namespace 'chat' funcionar
+app_name = 'chat'
 
 urlpatterns = [
-    path('join/<slug:room_slug>/', views.join_room, name='join_room'),
-    path('leave/<slug:room_slug>/', views.leave_room, name='leave_room'),
     path('dm/<str:username>/', views.start_dm_view, name='start-dm'),
-    path('<slug:room_slug>/delete/', views.delete_room_view, name='delete-room'),
-
     path('heartbeat/', views.heartbeat_view, name='heartbeat'),
-    path('<slug:room_slug>/', views.chat_room_view, name='chat_room'),
-    path('clear_chat/<slug:room_slug>/', views.clear_chat, name='clear_chat'),
+    re_path(r'^join/(?P<room_slug>[-a-zA-Z0-9_.]+)/$', views.join_room, name='join_room'),
+    re_path(r'^leave/(?P<room_slug>[-a-zA-Z0-9_.]+)/$', views.leave_room, name='leave_room'),
+    re_path(r'^(?P<room_slug>[-a-zA-Z0-9_.]+)/delete/$', views.delete_room_view, name='delete-room'),
+    re_path(r'^clear_chat/(?P<room_slug>[-a-zA-Z0-9_.]+)/$', views.clear_chat, name='clear_chat'),
+    re_path(r'^(?P<room_slug>[-a-zA-Z0-9_.]+)/$', views.chat_room_view, name='chat_room'),
 ]
