@@ -430,6 +430,13 @@ def get_profiles_in_room(self, connected_usernames, room): # Adicionamos 'room' 
         except (User.DoesNotExist, Profile.DoesNotExist): continue
     return user_list
 
+@database_sync_to_async
+def get_room(self):
+    try:
+        return ChatRoom.objects.get(slug=self.room_slug)
+    except ChatRoom.DoesNotExist:
+        return None
+
     @database_sync_to_async
     def update_last_seen(self):
         try: Profile.objects.filter(user=self.user).update(last_seen=timezone.now())
