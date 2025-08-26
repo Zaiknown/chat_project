@@ -19,12 +19,18 @@ class ChatMessage(models.Model):
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    avatar = CloudinaryField('image', default='avatars/default.jpg')
+    avatar = CloudinaryField(
+        'avatar',
+        # SUA URL FOI ADICIONADA AQUI
+        default='https://res.cloudinary.com/dtrfgop8f/image/upload/v1756166420/vdu6rwcppbq8zvzddkdw.jpg',
+        folder='avatars',
+        use_filename=True,
+        unique_filename=False,
+    )
     last_seen = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f'Perfil de {self.user.username}'
-
 
 class ChatRoom(models.Model):
     name = models.CharField(max_length=100, unique=True)

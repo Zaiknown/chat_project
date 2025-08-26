@@ -7,7 +7,7 @@ from django.core.mail import send_mail
 @receiver(post_save, sender=User)
 def create_or_update_user_profile(sender, instance, created, **kwargs):
     if created:
-        Profile.objects.create(user=instance)
+        Profile.objects.create(user=instance, avatar='https://res.cloudinary.com/dtrfgop8f/image/upload/v1756166420/vdu6rwcppbq8zvzddkdw.jpg')
         
         # Envia o email de boas-vindas
         subject = 'Bem-vindo ao Chat em Tempo Real!'
@@ -18,5 +18,4 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
         if instance.email: # Só envia se o email for fornecido
             send_mail(subject, message, from_email, recipient_list, fail_silently=False)
     
-    # Garante que o perfil seja salvo sempre que o usuário for salvo
     instance.profile.save()
