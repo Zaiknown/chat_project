@@ -176,16 +176,15 @@
         </div>
         <div class="chat-header-buttons">
             {% if not is_dm %}
-            <a href="{% url 'chat:leave_room' room.slug %}" class="btn btn-danger">Sair do Chat</a>
+            <a href="{% url 'chat:leave_room' room_slug %}" class="btn btn-danger">Sair do Chat</a>
             {% endif %}
             {% if is_admin %}
             <button id="settings-btn" class="btn btn-secondary"><i class="fas fa-cog"></i></button>
             {% endif %}
-            <button id="clear-chat-btn" class="btn btn-danger" data-url="{% url 'chat:clear_chat' room.slug %}"><i class="fas fa-trash-alt"></i></button>
+            <button id="clear-chat-btn" class="btn btn-danger" data-url="{% url 'chat:clear_chat' room_slug %}"><i class="fas fa-trash-alt"></i></button>
         </div>
     </div>
 
-<!-- Modal de Configurações do Chat -->
 <div id="chatSettingsModal" class="modal">
     <div class="modal-content">
         <h3>Configurações do Chat</h3>
@@ -212,8 +211,7 @@
         <div class="user-management">
             <h4>Gerenciar Usuários</h4>
             <ul id="user-management-list" class="list-group">
-                <!-- User list will be populated by JavaScript -->
-            </ul>
+                </ul>
         </div>
     </div>
 </div>
@@ -270,7 +268,6 @@
     </div>
 </div>
 
-<!-- Modal de Confirmação de Exclusão -->
 <div id="delete-confirm-modal" class="modal">
     <div class="modal-content">
         <h3>Apagar mensagem?</h3>
