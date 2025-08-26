@@ -61,7 +61,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         current_users_count = len(self.connected_users.get(self.room_group_name, {}))
-        if room and room.user_limit and current_users_count >= room.user_limit:
+        if room and hasattr(room, 'user_limit') and room.user_limit and current_users_count >= room.user_limit:
             logger.warning(f"Limite de usuários atingido na sala {self.room_slug}")
             await self.close(code=4003)
             return
@@ -337,7 +337,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     self.room_group_name,
                     {'type': 'system_message', 'message': message}
                 )
-                await self.broadcast_user_list() # Update user list to reflect mute status
+                await self.broadcast_user_list() 
             except User.DoesNotExist:
                 await self.send(text_data=json.dumps({
                     'type': 'system_message',
@@ -407,7 +407,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             usernames.update(past_users)
             muted_users = set(ChatRoomMute.objects.filter(room=room).values_list('muted_user__username', flat=True))
         else:
-            # Handling for DM rooms where 'room' object is None
             if '-' in self.room_slug:
                 participants = self.room_slug.split('-')
                 past_users = ChatMessage.objects.filter(room_name=self.room_slug).values_list('author__username', flat=True).distinct()
@@ -458,9 +457,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             return user.profile.avatar.url
         except (Profile.DoesNotExist, AttributeError):
-            # Fallback to a default URL if avatar is not set or profile doesn't exist
             return 'https://res.cloudinary.com/dtrfgop8f/image/upload/v1756166420/vdu6rwcppbq8zvzddkdw.jpg'
-
 
     @database_sync_to_async
     def get_room(self):
@@ -547,7 +544,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def is_admin_or_creator(self, room, user):
         if room is None:
-            # In DMs, there are no admins or creators in the same sense
             return False
         return room.creator == user or user in room.admins.all()
 
@@ -565,7 +561,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             message = ChatMessage.objects.get(id=message_id)
             if self.user == message.author:
                 time_diff = timezone.now() - message.timestamp
-                if time_diff.total_seconds() <= 300: # 5 minutes
+                if time_diff.total_seconds() <= 300:
                     message.is_deleted_for_everyone = True
                     message.save()
                     return True, None
@@ -580,11 +576,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def delete_message_by_admin(self, message_id):
         try:
             message = ChatMessage.objects.get(id=message_id)
-            # Admin can delete any message, maybe with a different time limit or none
-            message.is_deleted_for_everyone = True
-            message.deleted_by_admin = self.user
-            message.save()
-            return True, None
+            time_diff = timezone.now() - message.timestamp
+            if time_diff.total_seconds() <= 300:
+                message.is_deleted_for_everyone = True
+                message.deleted_by_admin = self.user
+                message.save()
+                return True, None
+            else:
+                return False, "Admins só podem apagar mensagens em até 5 minutos."
         except ChatMessage.DoesNotExist:
             logger.warning(f"Tentativa de apagar mensagem inexistente com ID {message_id}")
             return False, "Mensagem não encontrada."
