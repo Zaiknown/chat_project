@@ -358,42 +358,96 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const style = document.createElement('style');
+    // SUBSTITUA TODO O CONTEÚDO DE style.innerHTML POR ISTO:
     style.innerHTML = `
+        /* --- ESTILOS GERAIS (MANTIDOS) --- */
         #confirmation-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0, 0, 0, 0.75);
             display: flex; justify-content: center; align-items: center;
             z-index: 2000;
         }
+        #confirmation-modal .modal-content {
+            background-color: var(--bg-card, #fff); color: var(--text-main, #000);
+            padding: 25px; border-radius: 8px; text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        #confirmation-modal p { margin-bottom: 20px; font-size: 1.1rem; }
+        #confirmation-modal .modal-buttons button { margin: 0 5px; }
+        #confirmation-modal .btn-secondary { background-color: #6c757d; border-color: #6c757d; }
+        #confirmation-modal .btn-secondary:hover { background-color: #5a6268; border-color: #545b62; }
 
+        /* --- ESTILOS DO SIDEBAR (MELHORADOS) --- */
         .user-list-sidebar {
             background-color: var(--bg-card);
-            padding: 1.5rem;
+            padding: 1rem;
             border-radius: 8px;
             border: 1px solid var(--border-color);
-            display: flex; /* Adicionado para controle de layout interno */
-            flex-direction: column; /* Organiza os itens verticalmente */
-            height: 75vh; /* Altura fixa para ocupar a lateral da tela */
+            display: flex;
+            flex-direction: column;
+            height: 75vh;
         }
-
         .user-list-sidebar h4 {
             margin-top: 0;
             padding-bottom: 1rem;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             border-bottom: 1px solid var(--border-color);
             color: var(--text-main);
         }
-
         #user-list {
             list-style: none;
             padding: 0;
             margin: 0;
-            overflow-y: auto; /* Adiciona rolagem se a lista for longa */
-            flex-grow: 1; /* Faz a lista ocupar o espaço restante */
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        #user-list li {
+            margin-bottom: 0.25rem;
         }
 
-        #user-list li {
-            margin-bottom: 0.5rem; /* Espaçamento entre os usuários */
+        /* === NOVOS ESTILOS PARA OS ITENS DA LISTA === */
+        .user-list-link {
+            display: flex;
+            justify-content: space-between; /* Empurra os itens para as extremidades */
+            align-items: center; /* Alinha verticalmente no centro */
+            padding: 8px;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+        }
+        .user-list-link:hover {
+            background-color: var(--received-bubble-bg);
+        }
+        .user-list-link .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px; /* Espaço entre a foto e o texto */
+        }
+        .user-list-link .chat-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .user-list-link .user-info div {
+            display: flex;
+            flex-direction: column; /* Coloca o nome em cima do status */
+        }
+        .user-list-link .user-info span {
+            font-weight: 600;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            display: flex; /* Para alinhar ícones (coroa) com o nome */
+            align-items: center;
+            gap: 5px;
+        }
+        .user-list-link .user-info small.user-status {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        .user-actions-container {
+            position: relative;
         }
     `;
     document.head.appendChild(style);
