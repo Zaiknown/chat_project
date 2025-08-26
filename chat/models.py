@@ -34,7 +34,13 @@ class Profile(models.Model):
 
 class ChatRoom(models.Model):
     name = models.CharField(max_length=100)
-    slug = models.SlugField(unique=True, max_length=100)
+    slug = models.SlugField(max_length=100, unique=True)
+    password = models.CharField(max_length=50, blank=True, null=True)
+    user_limit = models.IntegerField(default=10)
+    created_at = models.DateTimeField(auto_now_add=True)
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_rooms')
+    admins = models.ManyToManyField(User, related_name='admin_of_rooms', blank=True)
+    is_muted = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         if not self.slug:
