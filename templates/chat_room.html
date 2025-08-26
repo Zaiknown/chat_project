@@ -176,12 +176,12 @@
         </div>
         <div class="chat-header-buttons">
             {% if not is_dm %}
-            <a href="{% url 'chat:leave_room' room.name %}" class="btn btn-danger">Sair do Chat</a>
+            <a href="{% url 'chat:leave_room' room.slug %}" class="btn btn-danger">Sair do Chat</a>
             {% endif %}
             {% if is_admin %}
             <button id="settings-btn" class="btn btn-secondary"><i class="fas fa-cog"></i></button>
             {% endif %}
-            <button id="clear-chat-btn" class="btn btn-danger"><i class="fas fa-trash-alt"></i></button>
+            <button id="clear-chat-btn" class="btn btn-danger" data-url="{% url 'chat:clear_chat' room.slug %}"><i class="fas fa-trash-alt"></i></button>
         </div>
     </div>
 
@@ -282,7 +282,7 @@
     </div>
 </div>
 
-{{ room_name|json_script:"room-name" }}
+{{ room_slug|json_script:"room-slug" }}
 {{ request.user.username|json_script:"user-username" }}
 {{ is_admin|json_script:"is-admin" }}
 {{ access_token|json_script:"access-token" }}

@@ -7,11 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.onblur = () => { isWindowActive = false; };
 
     // Elementos do DOM
-    const roomNameElement = document.getElementById('room-name');
+    const roomSlugElement = document.getElementById('room-slug');
     const userNameElement = document.getElementById('user-username');
-    if (!roomNameElement || !userNameElement) return;
+    if (!roomSlugElement || !userNameElement) return;
 
-    const roomName = JSON.parse(roomNameElement.textContent);
+    const roomSlug = JSON.parse(roomSlugElement.textContent);
     const userName = JSON.parse(userNameElement.textContent);
     const chatLog = document.querySelector('#chat-log');
     const userListElement = document.querySelector('#user-list');
@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Conexão WebSocket ---
     try {
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        chatSocket = new WebSocket(`${protocol}://${window.location.host}/ws/chat/${roomName}/`);
+        chatSocket = new WebSocket(`${protocol}://${window.location.host}/ws/chat/${roomSlug}/`);
     } catch (error) {
         addSystemMessage('Erro ao conectar ao chat.');
         return;
@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.code === 4001) message = 'Você foi banido desta sala.';
         if (e.code === 4002) {
             message = 'Acesso negado. Redirecionando para a página de senha...';
-            window.location.href = `/chat/room/${roomName}/`;
+            window.location.href = `/chat/${roomSlug}/`;
         }
         if (e.code === 4003) message = 'A sala atingiu o limite de usuários.';
         if (e.code === 4004) message = 'Sala não encontrada ou não existe.';
@@ -773,8 +773,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearChatBtn = document.getElementById('clear-chat-btn');
     if (clearChatBtn) {
         clearChatBtn.addEventListener('click', () => {
+            const url = clearChatBtn.dataset.url;
             showConfirmationModal('Tem certeza que deseja limpar todo o histórico desta conversa? Esta ação não pode ser desfeita.', () => {
-                window.location.href = `/chat/clear_chat/${roomName}/`;
+                window.location.href = url;
             });
         });
     }

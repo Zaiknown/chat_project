@@ -11,6 +11,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from django.utils.text import slugify
 
 def index_view(request):
     form = RoomCreationForm()
@@ -24,12 +25,11 @@ def index_view(request):
             room.creator = request.user
             room.save()
             messages.success(request, f"Sala '{room.name}' criada com sucesso!")
-            return redirect('chat:chat_room', room_name=room.name)
+            return redirect('chat:chat_room', room_slug=room.slug)
 
     public_rooms = ChatRoom.objects.all().order_by('-created_at')
     for room in public_rooms:
-        safe_name = ''.join(e for e in room.name if e.isalnum() or e in ['-', '_']).lower()
-        room.user_count = cache.get(f'chat_{safe_name}', 0)
+        room.user_count = cache.get(f'chat_{room.slug}', 0)
         
     private_chats = []
     if request.user.is_authenticated:
@@ -41,10 +41,9 @@ def index_view(request):
 
         for room_name in dm_room_names:
             participants = room_name.split('-')
-            # A more robust way to find the other user in the DM
             other_username_set = set(participants) - {request.user.username}
             if not other_username_set:
-                continue # Skip if the room name is malformed (e.g., just the user's own name)
+                continue
             other_username = other_username_set.pop()
             try:
                 other_user_profile = Profile.objects.get(user__username=other_username)
@@ -61,24 +60,35 @@ def index_view(request):
     return render(request, 'index.html', context)
 
 @login_required
-def join_room(request, room_name):
+def join_room(request, room_slug):
+    try:
+        room = ChatRoom.objects.get(slug=room_slug)
+    except ChatRoom.DoesNotExist:
+        messages.error(request, "A sala que você tentou acessar não existe.")
+        return redirect('index')
+
     joined_rooms = request.session.get('joined_rooms', [])
-    if room_name not in joined_rooms:
-        joined_rooms.append(room_name)
+    if room.slug not in joined_rooms:
+        joined_rooms.append(room.slug)
         request.session['joined_rooms'] = joined_rooms
-    request.session['just_joined_room'] = room_name
-    return redirect('chat:chat_room', room_name=room_name)
+    request.session['just_joined_room'] = room.slug
+    return redirect('chat:chat_room', room_slug=room.slug)
 
 @login_required
-def leave_room(request, room_name):
+def leave_room(request, room_slug):
+    try:
+        room = ChatRoom.objects.get(slug=room_slug)
+    except ChatRoom.DoesNotExist:
+        messages.error(request, "A sala que você tentou sair não existe.")
+        return redirect('index')
+
     joined_rooms = request.session.get('joined_rooms', [])
-    if room_name in joined_rooms:
-        joined_rooms.remove(room_name)
+    if room.slug in joined_rooms:
+        joined_rooms.remove(room.slug)
         request.session['joined_rooms'] = joined_rooms
 
     channel_layer = get_channel_layer()
-    safe_room_name = ''.join(e for e in room_name if e.isalnum() or e in ['-', '_']).lower()
-    room_group_name = f'chat_{safe_room_name}'
+    room_group_name = f'chat_{room.slug}'
 
     async_to_sync(channel_layer.group_send)(
         room_group_name,
@@ -91,14 +101,14 @@ def leave_room(request, room_name):
     return redirect('index')
 
 @login_required
-def chat_room_view(request, room_name):
-    is_dm = '-' in room_name
+def chat_room_view(request, room_slug):
+    is_dm = '-' in room_slug
     other_user_profile = None
     room = None
     access_token = None
 
     if is_dm:
-        participants = room_name.split('-')
+        participants = room_slug.split('-')
         if request.user.username not in participants:
             messages.error(request, "Você não tem permissão para entrar nesta conversa.")
             return redirect('index')
@@ -111,7 +121,7 @@ def chat_room_view(request, room_name):
             return redirect('index')
     else:
         try:
-            room = ChatRoom.objects.get(name=room_name)
+            room = ChatRoom.objects.get(slug=room_slug)
         except ChatRoom.DoesNotExist:
             messages.error(request, "A sala que você tentou acessar não existe.")
             return redirect('index')
@@ -119,32 +129,32 @@ def chat_room_view(request, room_name):
     if room and room.password:
         authorized_rooms = request.session.get('authorized_rooms', [])
         
-        if room.name not in authorized_rooms:
+        if room.slug not in authorized_rooms:
             if request.method == 'POST':
                 form = RoomPasswordForm(request.POST)
                 if form.is_valid() and form.cleaned_data['password'] == room.password:
-                    authorized_rooms.append(room.name)
+                    authorized_rooms.append(room.slug)
                     request.session['authorized_rooms'] = authorized_rooms
                     
                     token = secrets.token_urlsafe(16)
                     room_tokens = request.session.get('room_tokens', {})
-                    room_tokens[room.name] = token
+                    room_tokens[room.slug] = token
                     request.session['room_tokens'] = room_tokens
                     
-                    return redirect('chat:chat_room', room_name=room.name)
+                    return redirect('chat:chat_room', room_slug=room.slug)
                 else:
                     messages.error(request, "Senha incorreta!")
             return render(request, 'password_prompt.html', {'room': room, 'form': RoomPasswordForm()})
         
         room_tokens = request.session.get('room_tokens', {})
-        access_token = room_tokens.get(room.name)
+        access_token = room_tokens.get(room.slug)
         if not access_token:
             access_token = secrets.token_urlsafe(16)
-            room_tokens[room.name] = access_token
+            room_tokens[room.slug] = access_token
             request.session['room_tokens'] = room_tokens
         
 
-    chat_messages_qs = ChatMessage.objects.filter(room_name=room_name).select_related('author__profile', 'parent__author').exclude(deleted_by=request.user).order_by('timestamp')[:50]
+    chat_messages_qs = ChatMessage.objects.filter(room_name=room.name if room else room_slug).select_related('author__profile', 'parent__author').exclude(deleted_by=request.user).order_by('timestamp')[:50]
     
     messages_list = []
     for message in chat_messages_qs:
@@ -165,10 +175,11 @@ def chat_room_view(request, room_name):
             'parent': parent_info,
         })
     
-    display_name = "Chat Privado" if is_dm else room_name
+    display_name = other_user_profile.user.username if is_dm else room.name
 
     context = {
-        'room_name': room_name,
+        'room_name': room.name if room else None,
+        'room_slug': room_slug,
         'display_name': display_name,
         'chat_messages': messages_list,
         'is_dm': is_dm,
@@ -180,11 +191,11 @@ def chat_room_view(request, room_name):
     return render(request, 'chat_room.html', context)
 
 @login_required
-def room_status_view(request, room_name):
-    if '-' in room_name:
+def room_status_view(request, room_slug):
+    if '-' in room_slug:
         return JsonResponse({'is_muted': False})
     try:
-        room = ChatRoom.objects.get(name=room_name)
+        room = ChatRoom.objects.get(slug=room_slug)
         return JsonResponse({'is_muted': room.is_muted})
     except ChatRoom.DoesNotExist:
         return JsonResponse({'error': 'Sala não encontrada'}, status=404)
@@ -243,12 +254,18 @@ def credits_view(request):
     return render(request, 'credits.html')
 
 @login_required
-def clear_chat(request, room_name):
-    messages_to_clear = ChatMessage.objects.filter(room_name=room_name)
+def clear_chat(request, room_slug):
+    try:
+        room = ChatRoom.objects.get(slug=room_slug)
+    except ChatRoom.DoesNotExist:
+        messages.error(request, "A sala que você tentou limpar não existe.")
+        return redirect('index')
+
+    messages_to_clear = ChatMessage.objects.filter(room_name=room.name)
     for message in messages_to_clear:
         message.deleted_by.add(request.user)
     messages.success(request, "A conversa foi limpa para você.")
-    return redirect('chat:chat_room', room_name=room_name)
+    return redirect('chat:chat_room', room_slug=room.slug)
 
 @login_required
 def start_dm_view(request, username):
@@ -263,13 +280,13 @@ def start_dm_view(request, username):
         return redirect('index')
 
     usernames = sorted([request.user.username, other_user.username])
-    room_name = '-'.join(usernames)
-    return redirect('chat:chat_room', room_name=room_name)
+    room_slug = slugify('-'.join(usernames))
+    return redirect('chat:chat_room', room_slug=room_slug)
 
 @login_required
-def delete_room_view(request, room_name):
+def delete_room_view(request, room_slug):
     try:
-        room = ChatRoom.objects.get(name=room_name)
+        room = ChatRoom.objects.get(slug=room_slug)
     except ChatRoom.DoesNotExist:
         messages.error(request, "Esta sala não existe.")
         return redirect('index')

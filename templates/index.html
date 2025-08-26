@@ -15,10 +15,10 @@
             <ul id="room-list" style="list-style: none; padding: 0;">
                 {% for room in public_rooms %}
                     <li style="margin-bottom: 0.75rem; display: flex; align-items: center; gap: 10px;">
-                        {% if room.name in joined_rooms %}
-                            <a href="{% url 'chat:chat_room' room.name %}" class="btn join-leave-btn">Entrar na Sala</a>
+                        {% if room.slug in joined_rooms %}
+                            <a href="{% url 'chat:chat_room' room.slug %}" class="btn join-leave-btn">Entrar na Sala</a>
                         {% else %}
-                            <a href="{% url 'chat:join_room' room.name %}" class="btn join-leave-btn">Participar do Chat</a>
+                            <a href="{% url 'chat:join_room' room.slug %}" class="btn join-leave-btn">Participar do Chat</a>
                         {% endif %}
                         <span style="flex-grow: 1;">{{ room.name }}</span>
                         <span style="display: flex; align-items: center; gap: 8px;">
@@ -27,7 +27,7 @@
                         </span>
                         
                         {% if request.user == room.creator %}
-                            <form action="{% url 'chat:delete-room' room.name %}" method="POST" onsubmit="return confirm('Tem certeza que deseja deletar esta sala?');">
+                            <form action="{% url 'chat:delete-room' room.slug %}" method="POST" onsubmit="return confirm('Tem certeza que deseja deletar esta sala?');">
                                 {% csrf_token %}
                                 <button type="submit" class="btn" style="background-color: var(--accent); padding: 10px 12px;" title="Deletar Sala">
                                     <i class="fas fa-trash"></i>

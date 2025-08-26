@@ -22,7 +22,6 @@ class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     avatar = CloudinaryField(
         'avatar',
-        # SUA URL FOI ADICIONADA AQUI
         default='https://res.cloudinary.com/dtrfgop8f/image/upload/v1756166420/vdu6rwcppbq8zvzddkdw.jpg',
         folder='avatars',
         use_filename=True,
@@ -35,7 +34,6 @@ class Profile(models.Model):
 
 class ChatRoom(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    # ADICIONE O CAMPO SLUG ABAIXO
     slug = models.SlugField(unique=True, max_length=100, blank=True)
     creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_rooms')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -44,7 +42,6 @@ class ChatRoom(models.Model):
     is_muted = models.BooleanField(default=False)
     admins = models.ManyToManyField(User, related_name='admin_of_rooms', blank=True)
 
-    # ADICIONE ESTE MÉTODO SAVE
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)

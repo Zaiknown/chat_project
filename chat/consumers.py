@@ -15,20 +15,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
     connected_users = {}
 
     async def connect(self):
-        self.room_name = self.scope['url_route']['kwargs']['room_name']
+        self.room_slug = self.scope['url_route']['kwargs']['room_slug']
         self.user = self.scope['user']
         self.left_explicitly = False
-        safe_room_name = ''.join(e for e in self.room_name if e.isalnum() or e in ['-', '_']).lower()
-        self.room_group_name = f'chat_{safe_room_name}'
+        self.room_group_name = f'chat_{self.room_slug}'
 
         if not self.user.is_authenticated:
-            logger.warning(f"Usuário não autenticado tentou conectar à sala {self.room_name}")
+            logger.warning(f"Usuário não autenticado tentou conectar à sala {self.room_slug}")
             await self.close()
             return
 
         room = await self.get_room()
         if room and room.password:
-            authorized_in_session = self.room_name in self.scope.get('session', {}).get('authorized_rooms', [])
+            authorized_in_session = self.room_slug in self.scope.get('session', {}).get('authorized_rooms', [])
             
             if not authorized_in_session:
                 try:
@@ -41,7 +40,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         return
 
                     room_tokens = self.scope.get('session', {}).get('room_tokens', {})
-                    expected_token = room_tokens.get(self.room_name)
+                    expected_token = room_tokens.get(self.room_slug)
 
                     if not expected_token or not secrets.compare_digest(token_from_client, expected_token):
                         await self.close(code=4002)
@@ -50,8 +49,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     await self.close(code=4002)
                     return
 
-        if room is None and '-' not in self.room_name:
-            logger.warning(f"Sala {self.room_name} não encontrada")
+        if room is None and '-' not in self.room_slug:
+            logger.warning(f"Sala {self.room_slug} não encontrada")
             await self.close(code=4004)
             return
 
@@ -63,7 +62,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         current_users_count = len(self.connected_users.get(self.room_group_name, {}))
         if room and current_users_count >= room.user_limit:
-            logger.warning(f"Limite de usuários atingido na sala {self.room_name}")
+            logger.warning(f"Limite de usuários atingido na sala {self.room_slug}")
             await self.close(code=4003)
             return
 
@@ -83,10 +82,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.connected_users[self.room_group_name][self.user.username] = self.channel_name
 
         await self.update_last_seen()
-        logger.info(f"Usuário {self.user.username} conectou à sala {self.room_name}, last_seen atualizado")
+        logger.info(f"Usuário {self.user.username} conectou à sala {self.room_slug}, last_seen atualizado")
 
-        if self.scope['session'].get('just_joined_room') == self.room_name:
-            if '-' not in self.room_name:
+        if self.scope['session'].get('just_joined_room') == self.room_slug:
+            if '-' not in self.room_slug:
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -103,9 +102,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             del self.connected_users[self.room_group_name][self.user.username]
 
         await self.update_last_seen()
-        logger.info(f"Usuário {self.user.username} desconectou da sala {self.room_name}, last_seen atualizado")
+        logger.info(f"Usuário {self.user.username} desconectou da sala {self.room_slug}, last_seen atualizado")
 
-        if not self.left_explicitly and '-' not in self.room_name and not getattr(self, 'banned_user', False) and not getattr(self, 'kicked', False):
+        if not self.left_explicitly and '-' not in self.room_slug and not getattr(self, 'banned_user', False) and not getattr(self, 'kicked', False):
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -212,7 +211,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 return
 
             parent_id = text_data_json.get('reply_to')
-            chat_message_obj = await self.save_message(self.user, self.room_name, message, parent_id)
+            chat_message_obj = await self.save_message(self.user, room.name if room else self.room_slug, message, parent_id)
             
             avatar_url = await self.get_avatar_url(self.user)
 
@@ -271,14 +270,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'message': f'As configurações da sala foram atualizadas por {self.user.username}.'
                     }
                 )
-                # If room name changed, we might need to handle redirection or update the group name
-                if updated_room.name != self.room_name:
-                    # This part is complex and might require client-side redirection
+                if updated_room.name != room.name:
                     pass
 
     async def leave_chat(self, event):
         self.left_explicitly = True
-        if '-' not in self.room_name:
+        if '-' not in self.room_slug:
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -404,16 +401,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def get_profiles_in_room(self, connected_usernames):
         user_list = []
         usernames = set()
-        past_users = ChatMessage.objects.filter(room_name=self.room_name).values_list('author__username', flat=True).distinct()
-        usernames.update(past_users)
-        usernames.update(connected_usernames)
-
-        try:
-            room = ChatRoom.objects.get(name=self.room_name)
+        room = self.get_room_sync()
+        if room:
+            past_users = ChatMessage.objects.filter(room_name=room.name).values_list('author__username', flat=True).distinct()
+            usernames.update(past_users)
             muted_users = set(ChatRoomMute.objects.filter(room=room).values_list('muted_user__username', flat=True))
-        except ChatRoom.DoesNotExist:
-            room = None
+        else:
             muted_users = set()
+        usernames.update(connected_usernames)
 
         for username in usernames:
             try:
@@ -438,7 +433,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_room_sync(self):
-        try: return ChatRoom.objects.get(name=self.room_name)
+        try: return ChatRoom.objects.get(slug=self.room_slug)
         except ChatRoom.DoesNotExist: return None
 
     @database_sync_to_async
@@ -465,7 +460,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_room(self):
-        try: return ChatRoom.objects.get(name=self.room_name)
+        try: return ChatRoom.objects.get(slug=self.room_slug)
         except ChatRoom.DoesNotExist: return None
 
     @database_sync_to_async
@@ -488,7 +483,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             target_channel_name = self.connected_users.get(self.room_group_name, {}).get(target_username)
             if target_channel_name:
-                # Remove the user from the list of connected users
                 if self.room_group_name in self.connected_users and target_username in self.connected_users[self.room_group_name]:
                     del self.connected_users[self.room_group_name][target_username]
                 
