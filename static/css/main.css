@@ -112,7 +112,17 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 
 /* --- Página de Chat --- */
 .chat-page-container { display: flex; gap: 1.5rem; }
-.user-list-sidebar { flex: 1; background-color: var(--bg-card); padding: 1.5rem; border-radius: 8px; height: 75vh; border: 1px solid var(--border-color); }
+.user-list-sidebar {
+    flex: 1;
+    min-width: 250px;
+    background-color: var(--bg-card);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    height: 75vh;
+}
 #user-list { list-style: none; padding-left: 0; }
 #user-list li { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
 .status-indicator { width: 10px; height: 10px; border-radius: 50%; }
