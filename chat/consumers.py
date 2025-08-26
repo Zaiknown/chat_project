@@ -61,7 +61,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         current_users_count = len(self.connected_users.get(self.room_group_name, {}))
-        if room and current_users_count >= room.user_limit:
+        if room and room.user_limit and current_users_count >= room.user_limit:
             logger.warning(f"Limite de usuários atingido na sala {self.room_slug}")
             await self.close(code=4003)
             return
@@ -387,55 +387,56 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.kicked = True
         await self.close(code=4001)
 
-async def broadcast_user_list(self):
-    connected_usernames = self.connected_users.get(self.room_group_name, {}).keys()
-    room = await self.get_room()
-    profiles = await self.get_profiles_in_room(connected_usernames, room)
-    await self.channel_layer.group_send(
-        self.room_group_name, {
-            'type': 'user_list_update',
-            'users': profiles
-        }
-    )
-@database_sync_to_async
-def get_profiles_in_room(self, connected_usernames, room): # Adicionamos 'room' como parâmetro
-    user_list = []
-    usernames = set()
-    if room:
-        past_users = ChatMessage.objects.filter(room_name=room.name).values_list('author__username', flat=True).distinct()
-        usernames.update(past_users)
-        muted_users = set(ChatRoomMute.objects.filter(room=room).values_list('muted_user__username', flat=True))
-    else:
-        muted_users = set()
-    usernames.update(connected_usernames)
+    async def broadcast_user_list(self):
+        connected_usernames = self.connected_users.get(self.room_group_name, {}).keys()
+        room = await self.get_room()
+        profiles = await self.get_profiles_in_room(connected_usernames, room)
+        await self.channel_layer.group_send(
+            self.room_group_name, {
+                'type': 'user_list_update',
+                'users': profiles
+            }
+        )
 
-    for username in usernames:
-        try:
-            user = User.objects.select_related('profile').get(username=username)
-            last_seen = user.profile.last_seen
-            is_online = (timezone.now() - last_seen).total_seconds() < 45 if last_seen else False
-            is_creator = room and room.creator == user
-            is_admin = room and user in room.admins.all()
-            is_muted = username in muted_users
+    @database_sync_to_async
+    def get_profiles_in_room(self, connected_usernames, room):
+        user_list = []
+        usernames = set()
+        if room:
+            past_users = ChatMessage.objects.filter(room_name=room.name).values_list('author__username', flat=True).distinct()
+            usernames.update(past_users)
+            muted_users = set(ChatRoomMute.objects.filter(room=room).values_list('muted_user__username', flat=True))
+        else:
+            # Handling for DM rooms where 'room' object is None
+            if '-' in self.room_slug:
+                participants = self.room_slug.split('-')
+                past_users = ChatMessage.objects.filter(room_name=self.room_slug).values_list('author__username', flat=True).distinct()
+                usernames.update(participants)
+                usernames.update(past_users)
+            muted_users = set()
 
-            user_list.append({
-                'username': user.username,
-                'avatar_url': user.profile.avatar.url,
-                'is_online': is_online,
-                'last_seen': last_seen.strftime('%d/%m às %H:%M') if last_seen else 'Nunca',
-                'is_creator': is_creator,
-                'is_admin': is_admin,
-                'is_muted': is_muted
-            })
-        except (User.DoesNotExist, Profile.DoesNotExist): continue
-    return user_list
+        usernames.update(connected_usernames)
 
-@database_sync_to_async
-def get_room(self):
-    try:
-        return ChatRoom.objects.get(slug=self.room_slug)
-    except ChatRoom.DoesNotExist:
-        return None
+        for username in usernames:
+            try:
+                user = User.objects.select_related('profile').get(username=username)
+                last_seen = user.profile.last_seen
+                is_online = (timezone.now() - last_seen).total_seconds() < 45 if last_seen else False
+                is_creator = room and room.creator == user
+                is_admin = room and user in room.admins.all()
+                is_muted = username in muted_users
+
+                user_list.append({
+                    'username': user.username,
+                    'avatar_url': user.profile.avatar.url,
+                    'is_online': is_online, 
+                    'last_seen': last_seen.strftime('%d/%m às %H:%M') if last_seen else 'Nunca',
+                    'is_creator': is_creator,
+                    'is_admin': is_admin,
+                    'is_muted': is_muted
+                })
+            except (User.DoesNotExist, Profile.DoesNotExist): continue
+        return user_list
 
     @database_sync_to_async
     def update_last_seen(self):
@@ -456,13 +457,17 @@ def get_room(self):
     def get_avatar_url(self, user):
         try:
             return user.profile.avatar.url
-        except Profile.DoesNotExist:
-            return Profile._meta.get_field('avatar').get_default()
+        except (Profile.DoesNotExist, AttributeError):
+            # Fallback to a default URL if avatar is not set or profile doesn't exist
+            return 'https://res.cloudinary.com/dtrfgop8f/image/upload/v1756166420/vdu6rwcppbq8zvzddkdw.jpg'
+
 
     @database_sync_to_async
     def get_room(self):
-        try: return ChatRoom.objects.get(slug=self.room_slug)
-        except ChatRoom.DoesNotExist: return None
+        try:
+            return ChatRoom.objects.get(slug=self.room_slug)
+        except ChatRoom.DoesNotExist:
+            return None
 
     @database_sync_to_async
     def is_user_banned(self, room, user):
@@ -542,6 +547,7 @@ def get_room(self):
     @database_sync_to_async
     def is_admin_or_creator(self, room, user):
         if room is None:
+            # In DMs, there are no admins or creators in the same sense
             return False
         return room.creator == user or user in room.admins.all()
 
@@ -559,7 +565,7 @@ def get_room(self):
             message = ChatMessage.objects.get(id=message_id)
             if self.user == message.author:
                 time_diff = timezone.now() - message.timestamp
-                if time_diff.total_seconds() <= 300:
+                if time_diff.total_seconds() <= 300: # 5 minutes
                     message.is_deleted_for_everyone = True
                     message.save()
                     return True, None
@@ -574,17 +580,15 @@ def get_room(self):
     def delete_message_by_admin(self, message_id):
         try:
             message = ChatMessage.objects.get(id=message_id)
-            time_diff = timezone.now() - message.timestamp
-            if time_diff.total_seconds() <= 300:
-                message.is_deleted_for_everyone = True
-                message.deleted_by_admin = self.user
-                message.save()
-                return True, None
-            else:
-                return False, "Admins só podem apagar mensagens em até 5 minutos."
+            # Admin can delete any message, maybe with a different time limit or none
+            message.is_deleted_for_everyone = True
+            message.deleted_by_admin = self.user
+            message.save()
+            return True, None
         except ChatMessage.DoesNotExist:
             logger.warning(f"Tentativa de apagar mensagem inexistente com ID {message_id}")
             return False, "Mensagem não encontrada."
+
 
     @database_sync_to_async
     def update_chat_settings(self, room, new_name, user_limit):
