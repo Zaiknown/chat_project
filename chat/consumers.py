@@ -387,54 +387,48 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.kicked = True
         await self.close(code=4001)
 
-    async def broadcast_user_list(self):
-        connected_usernames = self.connected_users.get(self.room_group_name, {}).keys()
-        profiles = await self.get_profiles_in_room(connected_usernames)
-        await self.channel_layer.group_send(
-            self.room_group_name, {
-                'type': 'user_list_update',
-                'users': profiles
-            }
-        )
+async def broadcast_user_list(self):
+    connected_usernames = self.connected_users.get(self.room_group_name, {}).keys()
+    room = await self.get_room()
+    profiles = await self.get_profiles_in_room(connected_usernames, room)
+    await self.channel_layer.group_send(
+        self.room_group_name, {
+            'type': 'user_list_update',
+            'users': profiles
+        }
+    )
+@database_sync_to_async
+def get_profiles_in_room(self, connected_usernames, room): # Adicionamos 'room' como parâmetro
+    user_list = []
+    usernames = set()
+    if room:
+        past_users = ChatMessage.objects.filter(room_name=room.name).values_list('author__username', flat=True).distinct()
+        usernames.update(past_users)
+        muted_users = set(ChatRoomMute.objects.filter(room=room).values_list('muted_user__username', flat=True))
+    else:
+        muted_users = set()
+    usernames.update(connected_usernames)
 
-    @database_sync_to_async
-    def get_profiles_in_room(self, connected_usernames):
-        user_list = []
-        usernames = set()
-        room = self.get_room_sync()
-        if room:
-            past_users = ChatMessage.objects.filter(room_name=room.name).values_list('author__username', flat=True).distinct()
-            usernames.update(past_users)
-            muted_users = set(ChatRoomMute.objects.filter(room=room).values_list('muted_user__username', flat=True))
-        else:
-            muted_users = set()
-        usernames.update(connected_usernames)
+    for username in usernames:
+        try:
+            user = User.objects.select_related('profile').get(username=username)
+            last_seen = user.profile.last_seen
+            is_online = (timezone.now() - last_seen).total_seconds() < 45 if last_seen else False
+            is_creator = room and room.creator == user
+            is_admin = room and user in room.admins.all()
+            is_muted = username in muted_users
 
-        for username in usernames:
-            try:
-                user = User.objects.select_related('profile').get(username=username)
-                last_seen = user.profile.last_seen
-                is_online = (timezone.now() - last_seen).total_seconds() < 45 if last_seen else False
-                is_creator = room and room.creator == user
-                is_admin = room and user in room.admins.all()
-                is_muted = username in muted_users
-
-                user_list.append({
-                    'username': user.username,
-                    'avatar_url': user.profile.avatar.url,
-                    'is_online': is_online, 
-                    'last_seen': last_seen.strftime('%d/%m às %H:%M') if last_seen else 'Nunca',
-                    'is_creator': is_creator,
-                    'is_admin': is_admin,
-                    'is_muted': is_muted
-                })
-            except (User.DoesNotExist, Profile.DoesNotExist): continue
-        return user_list
-
-    @database_sync_to_async
-    def get_room_sync(self):
-        try: return ChatRoom.objects.get(slug=self.room_slug)
-        except ChatRoom.DoesNotExist: return None
+            user_list.append({
+                'username': user.username,
+                'avatar_url': user.profile.avatar.url,
+                'is_online': is_online,
+                'last_seen': last_seen.strftime('%d/%m às %H:%M') if last_seen else 'Nunca',
+                'is_creator': is_creator,
+                'is_admin': is_admin,
+                'is_muted': is_muted
+            })
+        except (User.DoesNotExist, Profile.DoesNotExist): continue
+    return user_list
 
     @database_sync_to_async
     def update_last_seen(self):
