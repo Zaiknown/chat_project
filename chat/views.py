@@ -1,3 +1,5 @@
+# ARQUIVO: chat/views.py
+
 import secrets
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -33,23 +35,22 @@ def index_view(request):
         
     private_chats = []
     if request.user.is_authenticated:
+        # Get all room names for DMs the user is part of
         dm_room_names = ChatMessage.objects.filter(
-            Q(author=request.user) | Q(room_name__contains=request.user.username)
-        ).filter(
             room_name__contains='-'
+        ).filter(
+            author=request.user
         ).values_list('room_name', flat=True).distinct()
 
-        for room_name in dm_room_names:
-            participants = room_name.split('-')
-            other_username_set = set(participants) - {request.user.username}
-            if not other_username_set:
-                continue
-            other_username = other_username_set.pop()
-            try:
-                other_user_profile = Profile.objects.get(user__username=other_username)
-                private_chats.append(other_user_profile)
-            except Profile.DoesNotExist:
-                continue
+        # Get all users (besides the current one) who have participated in these DMs
+        other_user_ids = ChatMessage.objects.filter(
+            room_name__in=list(dm_room_names)
+        ).exclude(
+            author=request.user
+        ).values_list('author__id', flat=True).distinct()
+
+        private_chats = Profile.objects.filter(user__id__in=other_user_ids)
+
 
     context = {
         'public_rooms': public_rooms,
@@ -109,16 +110,28 @@ def chat_room_view(request, room_slug):
 
     if is_dm:
         participants = room_slug.split('-')
-        if request.user.username not in participants:
+        slugified_username = slugify(request.user.username)
+        
+        if slugified_username not in participants:
             messages.error(request, "Você não tem permissão para entrar nesta conversa.")
             return redirect('index')
         
-        other_username = participants[0] if participants[1] == request.user.username else participants[1]
+        other_username_slug = participants[0] if participants[1] == slugified_username else participants[1]
+        
         try:
-            other_user_profile = Profile.objects.select_related('user').get(user__username=other_username)
-        except Profile.DoesNotExist:
-            messages.error(request, "Usuário da conversa não encontrado.")
-            return redirect('index')
+            # Find the other user by finding a message they sent in the chat
+            # This is more reliable than guessing from the slug
+            other_user = ChatMessage.objects.filter(room_name=room_slug).exclude(author=request.user).first().author
+            other_user_profile = Profile.objects.select_related('user').get(user=other_user)
+        except (AttributeError, Profile.DoesNotExist):
+            # Fallback for new DMs with no messages yet
+            try:
+                # This is a less reliable fallback and assumes slug matches a username
+                other_user = User.objects.get(username__iexact=other_username_slug)
+                other_user_profile = Profile.objects.select_related('user').get(user=other_user)
+            except (User.DoesNotExist, Profile.DoesNotExist):
+                messages.error(request, "Usuário da conversa não encontrado.")
+                return redirect('index')
     else:
         try:
             room = ChatRoom.objects.get(slug=room_slug)
@@ -153,7 +166,6 @@ def chat_room_view(request, room_slug):
             room_tokens[room.slug] = access_token
             request.session['room_tokens'] = room_tokens
         
-
     chat_messages_qs = ChatMessage.objects.filter(room_name=room.name if room else room_slug).select_related('author__profile', 'parent__author').exclude(deleted_by=request.user).order_by('timestamp')[:50]
     
     messages_list = []
