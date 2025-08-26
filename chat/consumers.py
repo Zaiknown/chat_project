@@ -1,5 +1,3 @@
-# ARQUIVO: chat/consumers.py
-
 import json
 import secrets
 from urllib.parse import parse_qs
@@ -34,12 +32,30 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.warning(f"Sala {self.room_slug} não encontrada")
             await self.close(code=4004)
             return
-
-        # Lógica específica para salas públicas (que possuem um objeto 'room')
+            
         if room:
             if room.password:
-                # (A sua lógica de verificação de token de senha permanece aqui, se aplicável)
-                pass
+                authorized_in_session = self.room_slug in self.scope.get('session', {}).get('authorized_rooms', [])
+                
+                if not authorized_in_session:
+                    try:
+                        query_string = self.scope.get('query_string', b'').decode()
+                        query_params = parse_qs(query_string)
+                        token_from_client = query_params.get('token', [None])[0]
+
+                        if not token_from_client:
+                            await self.close(code=4002)
+                            return
+
+                        room_tokens = self.scope.get('session', {}).get('room_tokens', {})
+                        expected_token = room_tokens.get(self.room_slug)
+
+                        if not expected_token or not secrets.compare_digest(token_from_client, expected_token):
+                            await self.close(code=4002)
+                            return
+                    except Exception:
+                        await self.close(code=4002)
+                        return
 
             self.banned_user = await self.is_user_banned(room, self.user)
             if self.banned_user:
@@ -71,14 +87,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.update_last_seen()
         logger.info(f"Usuário {self.user.username} conectou à sala {self.room_slug}, last_seen atualizado")
 
-        if not self.room_slug.startswith('dm-'):
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'system_message',
-                    'message': f'{self.user.username} entrou na sala.'
-                }
-            )
+        if self.scope['session'].get('just_joined_room') == self.room_slug:
+            if not self.room_slug.startswith('dm-'):
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'system_message',
+                        'message': f'{self.user.username} entrou na sala.'
+                    }
+                )
+            self.scope['session']['just_joined_room'] = None
 
         await self.broadcast_user_list()
 
@@ -277,44 +295,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         if action == 'kick' and target_username:
             await self.kick_user(room, target_username)
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {'type': 'system_message', 'message': f'{target_username} foi expulso da sala.'}
-            )
+            await self.channel_layer.group_send(self.room_group_name, {'type': 'system_message', 'message': f'{target_username} foi expulso da sala.'})
             await self.broadcast_user_list()
-
         elif action == 'promote' and target_username:
             await self.promote_user(room, target_username)
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {'type': 'system_message', 'message': f'{target_username} foi promovido a administrador.'}
-            )
+            await self.channel_layer.group_send(self.room_group_name, {'type': 'system_message', 'message': f'{target_username} foi promovido a administrador.'})
             await self.broadcast_user_list()
-
         elif action == 'demote' and target_username:
             await self.demote_user(room, target_username)
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {'type': 'system_message', 'message': f'{target_username} foi rebaixado para membro.'}
-            )
+            await self.channel_layer.group_send(self.room_group_name, {'type': 'system_message', 'message': f'{target_username} foi rebaixado para membro.'})
             await self.broadcast_user_list()
-
         elif action == 'mute_user' and target_username:
             try:
                 target_user = await database_sync_to_async(User.objects.get)(username=target_username)
                 mute_instance, created = await database_sync_to_async(ChatRoomMute.objects.get_or_create)(room=room, muted_user=target_user)
-                
-                if not created:
-                    await database_sync_to_async(mute_instance.delete)()
-                    message = f'{target_username} foi desmutado.'
-                else:
-                    message = f'{target_username} foi silenciado.'
-
+                message = f'{target_username} foi {"silenciado" if created else "desmutado"}.'
                 await self.channel_layer.group_send(self.room_group_name, {'type': 'system_message', 'message': message})
-                await self.broadcast_user_list() 
+                await self.broadcast_user_list()
             except User.DoesNotExist:
                 await self.send(text_data=json.dumps({'type': 'system_message', 'message': f'Usuário {target_username} não encontrado.'}))
-
         elif action == 'toggle_mute':
             room.is_muted = not room.is_muted
             await database_sync_to_async(room.save)()
@@ -327,11 +326,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             )
 
-    # ... Handlers for channel layer messages ...
     async def chat_message(self, event): await self.send(text_data=json.dumps(event))
     async def system_message(self, event): await self.send(text_data=json.dumps(event))
     async def user_list_update(self, event): await self.send(text_data=json.dumps(event))
     async def typing_signal(self, event): await self.send(text_data=json.dumps(event))
+    async def heartbeat(self, event): await self.send(text_data=json.dumps(event))
+    async def user_status_update(self, event): await self.send(text_data=json.dumps(event))
+    async def message_deleted_for_me(self, event): await self.send(text_data=json.dumps(event))
     async def message_deleted_for_everyone(self, event): await self.send(text_data=json.dumps(event))
     async def room_state_update(self, event): await self.send(text_data=json.dumps(event))
     async def mute_status_update(self, event): await self.send(text_data=json.dumps(event))
@@ -339,13 +340,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def admin_status_update(self, event):
         target_username = event.get('target_username')
         if self.user.username == target_username:
-            await self.send(text_data=json.dumps({
-                'type': 'admin_status_update',
-                'is_admin': event.get('is_admin')
-            }))
+            await self.send(text_data=json.dumps({'type': 'admin_status_update', 'is_admin': event.get('is_admin')}))
 
     async def force_disconnect(self, event):
-        await self.send(text_data=json.dumps({'type': 'system_message','message': 'Você foi expulso da sala.'}))
+        await self.send(text_data=json.dumps({'type': 'system_message', 'message': 'Você foi expulso da sala.'}))
         self.kicked = True
         await self.close(code=4001)
 
@@ -353,21 +351,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         connected_usernames = list(self.connected_users.get(self.room_group_name, {}).keys())
         room = await self.get_room()
         profiles = await self.get_profiles_in_room(connected_usernames, room)
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {'type': 'user_list_update', 'users': profiles}
-        )
+        await self.channel_layer.group_send(self.room_group_name, {'type': 'user_list_update', 'users': profiles})
 
     @database_sync_to_async
     def get_profiles_in_room(self, connected_usernames, room):
         user_list = []
         usernames = set(connected_usernames)
         
-        if room: # Public Room logic
+        if room: # Public Room
             past_users = ChatMessage.objects.filter(room_name=room.name).values_list('author__username', flat=True).distinct()
             usernames.update(past_users)
             muted_users = set(ChatRoomMute.objects.filter(room=room).values_list('muted_user__username', flat=True))
-        elif self.room_slug.startswith('dm-'): # DM Room logic
+        elif self.room_slug.startswith('dm-'): # DM Room
             participant_string = self.room_slug[3:]
             participants = participant_string.split('-')
             usernames.update(participants)
@@ -403,10 +398,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def update_last_seen(self):
-        try:
-            Profile.objects.filter(user=self.user).update(last_seen=timezone.now())
-        except Exception as e:
-            logger.error(f"Erro ao atualizar last_seen para {self.user.username}: {str(e)}")
+        try: Profile.objects.filter(user=self.user).update(last_seen=timezone.now())
+        except Exception as e: logger.error(f"Erro ao atualizar last_seen para {self.user.username}: {str(e)}")
 
     @database_sync_to_async
     def save_message(self, user, room_name, message, parent_id=None):
@@ -427,13 +420,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def is_user_banned(self, room, user):
-        if room is None: return False
-        return ChatRoomBan.objects.filter(room=room, banned_user=user).exists()
+        return room and ChatRoomBan.objects.filter(room=room, banned_user=user).exists()
 
     @database_sync_to_async
     def is_user_muted(self, room, user):
-        if room is None: return False
-        return ChatRoomMute.objects.filter(room=room, muted_user=user).exists()
+        return room and ChatRoomMute.objects.filter(room=room, muted_user=user).exists()
 
     async def kick_user(self, room, target_username):
         if room is None: return
@@ -447,8 +438,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     del self.connected_users[self.room_group_name][target_username]
                 
                 await self.channel_layer.send(target_channel_name, {'type': 'force_disconnect'})
-        except User.DoesNotExist:
-            pass
+        except User.DoesNotExist: pass
 
     @database_sync_to_async
     def _promote_user_db(self, room, target_username):
@@ -521,7 +511,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             message = ChatMessage.objects.get(id=message_id)
             time_diff = timezone.now() - message.timestamp
-            if time_diff.total_seconds() <= 300: # 5 minute window for admins too
+            if time_diff.total_seconds() <= 300:
                 message.is_deleted_for_everyone = True
                 message.deleted_by_admin = self.user
                 message.save()
