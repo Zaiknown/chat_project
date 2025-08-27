@@ -640,11 +640,14 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     border-bottom: 1px solid var(--border-color);
 }
 
-.reply-bar-content {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    overflow: hidden;
+.reply-content {
+    display: block;
+    white-space: nowrap;        
+    overflow: hidden;            
+    text-overflow: ellipsis;     
+    max-width: 100%;             
+    font-style: italic;
+    color: var(--text-secondary);
 }
 
 .reply-bar-text {
