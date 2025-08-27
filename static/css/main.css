@@ -643,28 +643,21 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 .reply-bar-content {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     width: 100%;
-    gap: 1rem;
     overflow: hidden;
 }
 
 .reply-bar-text {
     flex: 1;
-    min-width: 0; 
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 0.9rem;
 }
 
-.cancel-reply-btn {
+#cancel-reply-btn {
     flex-shrink: 0;
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: var(--text-secondary);
+    margin-left: 1rem;
 }
 
 .reply-context {
