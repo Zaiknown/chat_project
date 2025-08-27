@@ -123,9 +123,17 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 .chat-log.chat-log--no-scroll { overflow-y: hidden; overflow-x: hidden; }
 .chat-message { display: flex; align-items: flex-end; margin-bottom: 1rem; gap: 10px; max-width: 75%; }
 .chat-avatar { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
-.message-bubble { padding: 0.7rem 1rem; border-radius: 18px; line-height: 1.4; }
+.message-bubble {
+    padding: 0.7rem 1rem;
+    border-radius: 18px;
+    line-height: 1.4;
+    min-width: 0;
+}
 .message-author { font-weight: bold; font-size: 0.9rem; color: var(--text-main); margin-bottom: 0.2rem; }
-.message-content { word-wrap: break-word; }
+.message-content {
+    overflow-wrap: break-word;
+    word-break: break-all;
+}
 .message-timestamp { font-size: 0.75rem; color: var(--text-secondary); text-align: right; margin-top: 5px; display: block; }
 .chat-message.received { align-self: flex-start; }
 .chat-message.received .message-bubble { background-color: var(--received-bubble-bg); color: var(--text-main); }
