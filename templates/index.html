@@ -11,51 +11,51 @@
             <button class="tab-link" onclick="openTab(event, 'private-chats')">Conversas</button>
         </div>
 
-        <div id="public-rooms" class="tab-content" style="display: block;">
-            <ul id="room-list" style="list-style: none; padding: 0;">
+        <div id="public-rooms" class="tab-content active">
+            <ul id="room-list" class="room-list">
                 {% for room in public_rooms %}
-                    <li style="margin-bottom: 0.75rem; display: flex; align-items: center; gap: 10px;">
+                    <li class="room-list-item">
                         {% if room.slug in joined_rooms %}
                             <a href="{% url 'chat:chat_room' room.slug %}" class="btn join-leave-btn">Entrar na Sala</a>
                         {% else %}
                             <a href="{% url 'chat:join_room' room.slug %}" class="btn join-leave-btn">Participar do Chat</a>
                         {% endif %}
-                        <span style="flex-grow: 1;">{{ room.name }}</span>
-                        <span style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 0.9rem; color: var(--text-secondary);"><i class="fas fa-user"></i> {{ room.user_count }}</span>
-                            {% if room.password %}<i class="fas fa-lock" style="color: var(--text-secondary);"></i>{% endif %}
+                        <span class="room-name">{{ room.name }}</span>
+                        <span class="room-meta">
+                            <span class="room-user-count"><i class="fas fa-user"></i> {{ room.user_count }}</span>
+                            {% if room.password %}<i class="fas fa-lock room-lock-icon"></i>{% endif %}
                         </span>
                         
                         {% if request.user == room.creator %}
                             <form action="{% url 'chat:delete-room' room.slug %}" method="POST" onsubmit="return confirm('Tem certeza que deseja deletar esta sala?');">
                                 {% csrf_token %}
-                                <button type="submit" class="btn" style="background-color: var(--accent); padding: 10px 12px;" title="Deletar Sala">
+                                <button type="submit" class="btn btn-delete-room" title="Deletar Sala">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
                         {% endif %}
                     </li>
                 {% empty %}
-                    <li style="color: var(--text-secondary);">Nenhuma sala pública criada.</li>
+                    <li class="empty-list-message">Nenhuma sala pública criada.</li>
                 {% endfor %}
             </ul>
         </div>
 
-        <div id="private-chats" class="tab-content" style="display: none;">
-            <ul id="dm-list" style="list-style: none; padding: 0;">
+        <div id="private-chats" class="tab-content">
+            <ul id="dm-list" class="dm-list">
                 {% for profile in private_chats %}
-                    <li style="margin-bottom: 0.75rem;">
+                    <li class="dm-list-item">
                         {% with profile.user.username as other_username %}
                             <a href="{% url 'chat:start-dm' other_username %}" class="room-link">
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <img src="{{ profile.avatar.url }}" class="chat-avatar" style="width: 30px; height: 30px;">
+                                <div class="dm-link-container">
+                                    <img src="{{ profile.avatar.url }}" class="chat-avatar dm-avatar">
                                     <span>{{ other_username }}</span>
                                 </div>
                             </a>
                         {% endwith %}
                     </li>
                 {% empty %}
-                    <li style="color: var(--text-secondary);">Nenhuma conversa privada iniciada.</li>
+                    <li class="empty-list-message">Nenhuma conversa privada iniciada.</li>
                 {% endfor %}
             </ul>
         </div>
@@ -73,10 +73,10 @@
             {% endfor %}
             {% if form.errors %}
                 {% for field in form %}{% for error in field.errors %}
-                    <div style="color: var(--accent); font-size: 0.9rem;">{{ error }}</div>
+                    <div class="form-error">{{ error }}</div>
                 {% endfor %}{% endfor %}
             {% endif %}
-            <button type="submit" class="btn" style="margin-top: 1rem; width: 100%;">Criar Sala</button>
+            <button type="submit" class="btn btn-create-room">Criar Sala</button>
         </form>
     </div>
 </div>
