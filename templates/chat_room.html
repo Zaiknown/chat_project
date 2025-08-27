@@ -81,7 +81,7 @@
                         {% if message.parent %}
                             <div class="reply-context">
                                 Respondendo a <strong>{{ message.parent.author }}</strong>:
-                                <div class="reply-content">{{ message.parent.content|truncatechars:80 }}</div>
+                                <div class="reply-content">{{ message.parent.content|truncatechars:40 }}</div>
                             </div>
                         {% endif %}
                         {% if not message.is_sent_by_user %}
