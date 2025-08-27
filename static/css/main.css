@@ -639,27 +639,34 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
 }
+
 .reply-bar-content {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     width: 100%;
-    font-size: 0.9rem;
+    gap: 1rem;
+    overflow: hidden;
 }
+
 .reply-bar-text {
+    flex: 1;
+    min-width: 0; 
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    min-width: 0;
-    word-break: break-all;
+    font-size: 0.9rem;
 }
+
 .cancel-reply-btn {
+    flex-shrink: 0;
     background: none;
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
     color: var(--text-secondary);
 }
+
 .reply-context {
     padding: 8px;
     margin-bottom: 5px;
@@ -669,6 +676,7 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     border-left: 3px solid var(--primary-accent);
     overflow: hidden;
 }
+
 .reply-content {
     white-space: nowrap;
     overflow: hidden;
