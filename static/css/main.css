@@ -696,7 +696,6 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     border-left: 3px solid var(--primary-accent);
 }
 .reply-content {
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     font-style: italic;
