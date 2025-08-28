@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (statusElement) {
             if (data.is_online) {
                 statusElement.textContent = 'Online';
-                statusElement.classList.add('online'); 
+                statusElement.classList.add('online');
             } else {
                 statusElement.textContent = `Visto ${data.last_seen}`;
                 statusElement.classList.remove('online');
@@ -455,21 +455,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         optionsHtml += '</div></div>';
 
-        function truncateString(str, num) {
-        if (str.length > num) {
-            return str.slice(0, num) + "...";
-        }
-        return str;
-    }
-
+        // NOTE: A lógica de truncamento foi removida daqui, pois já foi feita no template com |truncatechars
         let replyContextHtml = '';
         if (data.parent) {
             const parentAuthor = data.parent.author === userName ? 'você mesmo' : data.parent.author;
-            const truncatedContent = data.parent.content;
             replyContextHtml = `
                 <div class="reply-context">
                     Respondendo a <strong>${parentAuthor}</strong>: 
-                    <div class="reply-content">${truncatedContent}</div>
+                    <div class="reply-content">${data.parent.content}</div>
                 </div>
             `;
         }
@@ -515,7 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!typingIndicator) return;
         const users = Array.from(typingUsers);
         if (users.length === 0) {
-            typingIndicator.textContent = ' '; // Non-breaking space
+            typingIndicator.textContent = ' '; // Non-breaking space
             return;
         }
         typingIndicator.textContent = users.length === 1 ? `${users[0]} está digitando...` : 'Várias pessoas estão digitando...';
@@ -608,7 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     dropdown.classList.add('visible');
                     userLink.classList.add('menu-open');
                 }
-                return; 
+                return;
             }
 
             if (actionBtn) {
@@ -628,6 +621,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function setupReply(messageElement) {
+        replyingToId = messageElement.dataset.messageId;
+        let messageContent = messageElement.querySelector('.message-content').textContent;
+        const messageAuthorUsername = messageElement.querySelector('.message-author')?.textContent || userName;
+
+        // --- ESTA É A CORREÇÃO ---
+        if (messageContent.length > 80) {
+            messageContent = messageContent.substring(0, 80) + "...";
+        }
+        // --- FIM DA CORREÇÃO ---
+
+        if (messageAuthorUsername === userName) {
+            replyBarUser.textContent = 'você mesmo';
+        } else {
+            replyBarUser.textContent = messageAuthorUsername;
+        }
+        replyBarMessage.textContent = messageContent;
+        replyBar.style.display = 'flex';
+
+        if (messageInput) messageInput.focus();
+    }
+    
     document.addEventListener('click', function(e) {
         const optionsToggle = e.target.closest('.options-toggle');
         if (optionsToggle) {
@@ -666,20 +681,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const replyBtn = e.target.closest('.reply-btn');
         if (replyBtn) {
             const messageElement = replyBtn.closest('.chat-message');
-            replyingToId = messageElement.dataset.messageId;
-            const messageContent = messageElement.querySelector('.message-content').textContent;
-            const messageAuthorUsername = messageElement.querySelector('.message-author')?.textContent || userName;
-
-            if (messageAuthorUsername === userName) {
-                replyBarUser.textContent = 'você mesmo';
-            } else {
-                replyBarUser.textContent = messageAuthorUsername;
-            }
-            replyBarMessage.textContent = messageContent;
-            replyBar.style.display = 'flex';
-
+            setupReply(messageElement);
             replyBtn.closest('.options-menu').style.display = 'none';
-            messageInput.focus();
         }
     });
 
@@ -694,27 +697,15 @@ document.addEventListener('DOMContentLoaded', () => {
         chatLog.addEventListener('dblclick', function(e) {
             const messageElement = e.target.closest('.chat-message');
             if (messageElement) {
-                replyingToId = messageElement.dataset.messageId;
-                const messageContent = messageElement.querySelector('.message-content').textContent;
-                const messageAuthorUsername = messageElement.querySelector('.message-author')?.textContent || userName;
-
-                if (messageAuthorUsername === userName) {
-                    replyBarUser.textContent = 'você mesmo';
-                } else {
-                    replyBarUser.textContent = messageAuthorUsername;
-                }
-                replyBarMessage.textContent = messageContent;
-                replyBar.style.display = 'flex';
-
-                messageInput.focus();
+                setupReply(messageElement);
             }
         });
     }
 
     if (modal) {
         cancelBtn.onclick = () => modal.style.display = 'none';
-        window.onclick = (e) => { 
-            if (e.target == modal) modal.style.display = 'none'; 
+        window.onclick = (e) => {
+            if (e.target == modal) modal.style.display = 'none';
             if (e.target == chatSettingsModal) {
                 chatSettingsModal.style.display = 'none';
                 document.body.classList.remove('modal-open');
@@ -775,8 +766,6 @@ document.addEventListener('DOMContentLoaded', () => {
             chatSocket.send(JSON.stringify({ 'heartbeat': true }));
         }
     });
-
-    document.head.appendChild(style);
 
     const clearChatBtn = document.getElementById('clear-chat-btn');
     if (clearChatBtn) {
