@@ -640,158 +640,43 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     border-bottom: 1px solid var(--border-color);
 }
 
-.reply-content {
-    display: block;
-    white-space: nowrap;        
-    overflow: hidden;            
-    text-overflow: ellipsis;     
-    max-width: 100%;             
-    font-style: italic;
-    color: var(--text-secondary);
-}
+.chat-message,
+.message-bubble,
+.reply-bar,
+.reply-context { min-width: 0; }
 
-.reply-bar-text {
-    flex: 1;
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-#cancel-reply-btn {
-    flex-shrink: 0;
-    margin-left: 1rem;
-}
-
-#chatSettingsModal .modal-content {
-    margin: 0;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-}
-
-#chatSettingsModal .user-management {
-    overflow-y: auto;
-    flex-grow: 1;
-}
-
-#confirmation-modal .modal-content {
-    margin: 0;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-.btn-back { 
-    margin-right: 10px; 
-}
-
-.btn-danger-strong {
-     background-color: #d93025; 
-}
-
-.room-list {
-    list-style: none;
-    padding: 0;
-}
-
-.room-list-item {
-    margin-bottom: 0.75rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.room-name {
-    flex-grow: 1;
-}
-
-.room-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.room-user-count {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-}
-
-.room-lock-icon {
-    color: var(--text-secondary);
-}
-
-.btn-delete-room {
-    background-color: var(--accent);
-    padding: 10px 12px;
-}
-
-.empty-list-message {
-    color: var(--text-secondary);
-}
-
-.dm-list {
-    list-style: none;
-    padding: 0;
-}
-
-.dm-list-item {
-    margin-bottom: 0.75rem;
-}
-
-.dm-link-container {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.dm-avatar {
-    width: 30px;
-    height: 30px;
-}
-
-.form-error {
-    color: var(--accent);
-    font-size: 0.9rem;
-}
-
-.btn-create-room {
-    margin-top: 1rem;
-    width: 100%;
-}
-
-.reply-content,
-#reply-bar-message {
-    display: block;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.message-bubble {
+    flex: 1 1 auto;
     max-width: 100%;
-}
-
-.reply-context {
-    padding: 8px;
-    margin-bottom: 5px;
-    background-color: var(--bg-main);
-    border-radius: 5px;
-    font-size: 0.9em;
-    border-left: 3px solid var(--primary-accent);
-    white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
 }
 
+.reply-bar {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    overflow: hidden;
+}
 .reply-bar-text,
 .reply-content,
-.reply-context {
+#reply-bar-message {
+    flex: 1 1 auto;
     min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.reply-context {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.message-content {
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
