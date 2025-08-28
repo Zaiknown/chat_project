@@ -786,3 +786,12 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     text-overflow: ellipsis;
     max-width: 100%;
 }
+
+.reply-bar-text,
+.reply-content,
+.reply-context {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
