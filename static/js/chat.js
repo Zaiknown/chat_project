@@ -455,13 +455,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         optionsHtml += '</div></div>';
 
+        function truncateString(str, num) {
+        if (str.length > num) {
+            return str.slice(0, num) + "...";
+        }
+        return str;
+    }
+
         let replyContextHtml = '';
         if (data.parent) {
             const parentAuthor = data.parent.author === userName ? 'você mesmo' : data.parent.author;
+            const truncatedContent = truncateString(data.parent.content, 100); // Truncate to 100 characters
             replyContextHtml = `
                 <div class="reply-context">
                     Respondendo a <strong>${parentAuthor}</strong>: 
-                    <div class="reply-content">${data.parent.content}</div>
+                    <div class="reply-content">${truncatedContent}</div>
                 </div>
             `;
         }
