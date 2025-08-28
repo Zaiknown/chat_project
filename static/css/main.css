@@ -632,12 +632,18 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 }
 
 .reply-bar {
+    background: #2c2c2c;
+    border-left: 4px solid #4a90e2;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #ddd;
     display: flex;
     align-items: center;
-    padding: 8px 12px;
-    background-color: var(--bg-main);
-    border-top: 1px solid var(--border-color);
-    border-bottom: 1px solid var(--border-color);
+    justify-content: space-between;
+    gap: 10px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .chat-message,
@@ -679,4 +685,17 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     overflow: hidden;
     overflow-wrap: anywhere;
     word-break: break-word;
+}
+
+.reply-bar-text {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#reply-bar-message {
+    color: #aaa;
+    font-style: italic;
 }
