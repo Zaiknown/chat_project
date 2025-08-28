@@ -121,14 +121,8 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 }
 .message-author { font-weight: bold; font-size: 0.9rem; color: var(--text-main); margin-bottom: 0.2rem; }
 .message-content {
-  overflow-wrap: break-word;
-  word-break: break-word;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  max-width: 100%;
-  display: block;
+    overflow-wrap: break-word;
+    word-break: break-all;
 }
 .message-timestamp { font-size: 0.75rem; color: var(--text-secondary); text-align: right; margin-top: 5px; display: block; }
 .chat-message.received { align-self: flex-start; }
@@ -647,11 +641,13 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 }
 
 .reply-content {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
-  max-width: 100%;
+    display: block;
+    white-space: nowrap;        
+    overflow: hidden;            
+    text-overflow: ellipsis;     
+    max-width: 100%;             
+    font-style: italic;
+    color: var(--text-secondary);
 }
 
 .reply-bar-text {
@@ -675,7 +671,6 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     font-size: 0.9em;
     border-left: 3px solid var(--primary-accent);
     overflow: hidden;
-    min-width: 0;
 }
 
 #chatSettingsModal .modal-content {
