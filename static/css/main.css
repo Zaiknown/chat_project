@@ -641,13 +641,11 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 }
 
 .reply-content {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     display: block;
-    white-space: nowrap;        
-    overflow: hidden;            
-    text-overflow: ellipsis;     
-    max-width: 100%;             
-    font-style: italic;
-    color: var(--text-secondary);
+    max-width: 100%;
 }
 
 .reply-bar-text {
