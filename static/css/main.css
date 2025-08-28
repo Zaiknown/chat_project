@@ -647,11 +647,11 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 }
 
 .reply-content {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: block;
-    max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 100%;
 }
 
 .reply-bar-text {
@@ -675,6 +675,7 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     font-size: 0.9em;
     border-left: 3px solid var(--primary-accent);
     overflow: hidden;
+    min-width: 0;
 }
 
 #chatSettingsModal .modal-content {
