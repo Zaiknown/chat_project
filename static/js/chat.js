@@ -625,13 +625,9 @@ document.addEventListener('DOMContentLoaded', () => {
         replyingToId = messageElement.dataset.messageId;
         let messageContent = messageElement.querySelector('.message-content').textContent;
         const messageAuthorUsername = messageElement.querySelector('.message-author')?.textContent || userName;
-
-        // --- ESTA É A CORREÇÃO ---
         if (messageContent.length > 40) {
-            messageContent = messageContent.substring(0, 80) + "...";
+            messageContent = messageContent.substring(0, 40) + "...";
         }
-        // --- FIM DA CORREÇÃO ---
-
         if (messageAuthorUsername === userName) {
             replyBarUser.textContent = 'você mesmo';
         } else {
