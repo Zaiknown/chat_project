@@ -663,16 +663,6 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     margin-left: 1rem;
 }
 
-.reply-context {
-    padding: 8px;
-    margin-bottom: 5px;
-    background-color: var(--bg-main);
-    border-radius: 5px;
-    font-size: 0.9em;
-    border-left: 3px solid var(--primary-accent);
-    overflow: hidden;
-}
-
 #chatSettingsModal .modal-content {
     margin: 0;
     position: fixed;
@@ -784,3 +774,15 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     max-width: 100%;
 }
 
+.reply-context {
+    padding: 8px;
+    margin-bottom: 5px;
+    background-color: var(--bg-main);
+    border-radius: 5px;
+    font-size: 0.9em;
+    border-left: 3px solid var(--primary-accent);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
