@@ -627,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const messageAuthorUsername = messageElement.querySelector('.message-author')?.textContent || userName;
 
         // --- ESTA É A CORREÇÃO ---
-        if (messageContent.length > 80) {
+        if (messageContent.length > 40) {
             messageContent = messageContent.substring(0, 80) + "...";
         }
         // --- FIM DA CORREÇÃO ---

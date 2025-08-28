@@ -699,3 +699,25 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     color: #aaa;
     font-style: italic;
 }
+
+.cancel-reply-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: var(--received-bubble-bg);
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    flex-shrink: 0;
+    margin-left: 1rem;
+}
+
+.cancel-reply-btn:hover {
+    background-color: var(--border-color);
+    color: var(--text-main);
+}
