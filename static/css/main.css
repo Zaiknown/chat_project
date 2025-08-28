@@ -774,3 +774,13 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     margin-top: 1rem;
     width: 100%;
 }
+
+.reply-content,
+#reply-bar-message {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+

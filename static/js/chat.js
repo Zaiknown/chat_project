@@ -465,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let replyContextHtml = '';
         if (data.parent) {
             const parentAuthor = data.parent.author === userName ? 'você mesmo' : data.parent.author;
-            const truncatedContent = truncateString(data.parent.content, 100); // Truncate to 100 characters
+            const truncatedContent = data.parent.content;
             replyContextHtml = `
                 <div class="reply-context">
                     Respondendo a <strong>${parentAuthor}</strong>: 
