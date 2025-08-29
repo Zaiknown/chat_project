@@ -614,11 +614,14 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 }
 
 .modal.is-visible {
-    display: flex !important;
+    display: block !important;
 }
 .modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     background-color: var(--bg-card);
-    margin: auto;
     padding: 25px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
