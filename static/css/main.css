@@ -611,9 +611,6 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     height: 100%;
     overflow: hidden;
     background-color: rgba(0,0,0,0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .modal.is-visible {
@@ -621,7 +618,7 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 }
 .modal-content {
     background-color: var(--bg-card);
-    margin: 0;
+    margin: auto;
     padding: 25px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
