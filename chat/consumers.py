@@ -348,6 +348,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.close(code=4001)
 
     async def broadcast_user_list(self):
+        user_count = len(self.connected_users.get(self.room_group_name, {}))
+        await database_sync_to_async(cache.set)(f'chat_{self.room_slug}', user_count, timeout=None)
         connected_usernames = list(self.connected_users.get(self.room_group_name, {}).keys())
         room = await self.get_room()
         profiles = await self.get_profiles_in_room(connected_usernames, room)
@@ -494,13 +496,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             message = ChatMessage.objects.get(id=message_id)
             if self.user == message.author:
-                time_diff = timezone.now() - message.timestamp
-                if time_diff.total_seconds() <= 300:
-                    message.is_deleted_for_everyone = True
-                    message.save()
-                    return True, None
-                else:
-                    return False, "Você só pode apagar mensagens em até 5 minutos."
+                message.is_deleted_for_everyone = True
+                message.save()
+                return True, None
             return False, "Você só pode apagar suas próprias mensagens."
         except ChatMessage.DoesNotExist:
             logger.warning(f"Tentativa de apagar mensagem inexistente com ID {message_id}")
@@ -510,14 +508,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def delete_message_by_admin(self, message_id):
         try:
             message = ChatMessage.objects.get(id=message_id)
-            time_diff = timezone.now() - message.timestamp
-            if time_diff.total_seconds() <= 300:
-                message.is_deleted_for_everyone = True
-                message.deleted_by_admin = self.user
-                message.save()
-                return True, None
-            else:
-                return False, "Admins só podem apagar mensagens em até 5 minutos."
+            message.is_deleted_for_everyone = True
+            message.deleted_by_admin = self.user
+            message.save()
+            return True, None
         except ChatMessage.DoesNotExist:
             logger.warning(f"Tentativa de apagar mensagem inexistente com ID {message_id}")
             return False, "Mensagem não encontrada."

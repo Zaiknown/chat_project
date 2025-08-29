@@ -47,7 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.add('modal-open');
             updateUserManagementList(currentUserList);
         });
-    }
+        }
+    });
 
     if (cancelSettingsBtn) {
         cancelSettingsBtn.addEventListener('click', () => {
@@ -768,8 +769,43 @@ document.addEventListener('DOMContentLoaded', () => {
         clearChatBtn.addEventListener('click', () => {
             const url = clearChatBtn.dataset.url;
             showConfirmationModal('Tem certeza que deseja limpar todo o histórico desta conversa? Esta ação não pode ser desfeita.', () => {
-                window.location.href = url;
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'), // Adicione o token CSRF para segurança
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'ok') {
+                        if (chatLog) {
+                            chatLog.innerHTML = ''; // Limpa o chat visualmente
+                            addSystemMessage('Histórico de mensagens limpo.');
+                        }
+                    } else {
+                        addSystemMessage(`Erro ao limpar o histórico: ${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao limpar o chat:', error);
+                    addSystemMessage('Ocorreu um erro de comunicação ao tentar limpar o chat.');
+                });
             });
         });
     }
-});
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }

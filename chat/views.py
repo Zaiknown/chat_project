@@ -278,14 +278,13 @@ def clear_chat(request, room_slug):
             room = ChatRoom.objects.get(slug=room_slug)
             room_name = room.name
         except ChatRoom.DoesNotExist:
-            messages.error(request, "A sala que você tentou limpar não existe.")
-            return redirect('index')
+            return JsonResponse({'status': 'error', 'message': 'Sala não encontrada.'}, status=404)
 
     messages_to_clear = ChatMessage.objects.filter(room_name=room_name)
     for message in messages_to_clear:
         message.deleted_by.add(request.user)
-    messages.success(request, "A conversa foi limpa para você.")
-    return redirect('chat:chat_room', room_slug=room_slug)
+    
+    return JsonResponse({'status': 'ok', 'message': 'A conversa foi limpa para você.'})
 
 @login_required
 def delete_room_view(request, room_slug):
