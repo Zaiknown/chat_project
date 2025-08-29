@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (settingsBtn) {
         settingsBtn.addEventListener('click', () => {
-            chatSettingsModal.style.display = 'block';
+            chatSettingsModal.classList.add('is-visible');
             document.body.classList.add('modal-open');
             updateUserManagementList(currentUserList);
         });
@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (cancelSettingsBtn) {
         cancelSettingsBtn.addEventListener('click', () => {
-            chatSettingsModal.style.display = 'none';
+            chatSettingsModal.classList.remove('is-visible');
             document.body.classList.remove('modal-open');
         });
     }
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'user_limit': userLimit
             }));
 
-            chatSettingsModal.style.display = 'none';
+            chatSettingsModal.classList.remove('is-visible');
             document.body.classList.remove('modal-open');
         });
     }
@@ -656,7 +656,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (deleteBtn) {
             const messageElement = deleteBtn.closest('.chat-message');
             messageToDeleteId = messageElement.dataset.messageId;
-            if (modal) modal.style.display = 'block';
+            if (modal) modal.classList.add('is-visible');
             deleteBtn.closest('.options-menu').style.display = 'none';
         }
 
@@ -699,11 +699,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (modal) {
-        cancelBtn.onclick = () => modal.style.display = 'none';
+        cancelBtn.onclick = () => modal.classList.remove('is-visible');
         window.onclick = (e) => {
-            if (e.target == modal) modal.style.display = 'none';
+            if (e.target == modal) modal.classList.remove('is-visible');
             if (e.target == chatSettingsModal) {
-                chatSettingsModal.style.display = 'none';
+                chatSettingsModal.classList.remove('is-visible');
                 document.body.classList.remove('modal-open');
             }
         };
@@ -715,7 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     'message_id': messageToDeleteId,
                     'scope': 'for_me'
                 }));
-                modal.style.display = 'none';
+                modal.classList.remove('is-visible');
             }
         };
 
@@ -726,7 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     'message_id': messageToDeleteId,
                     'scope': 'for_everyone'
                 }));
-                modal.style.display = 'none';
+                modal.classList.remove('is-visible');
             }
         };
     }
@@ -750,8 +750,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 replyingToId = null;
                 replyBar.style.display = 'none';
             }
-            if (chatSettingsModal.style.display === 'block') {
-                chatSettingsModal.style.display = 'none';
+            if (chatSettingsModal.classList.contains('is-visible')) {
+                chatSettingsModal.classList.remove('is-visible');
                 document.body.classList.remove('modal-open');
             }
         }
