@@ -523,6 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const modalOverlay = document.createElement('div');
         modalOverlay.id = 'confirmation-modal';
+        modalOverlay.classList.add('modal', 'is-visible');
         modalOverlay.innerHTML = `
             <div class="modal-content">
                 <p>${message}</p>
