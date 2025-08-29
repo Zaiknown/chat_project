@@ -47,8 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.add('modal-open');
             updateUserManagementList(currentUserList);
         });
-        }
-    });
+    }
 
     if (cancelSettingsBtn) {
         cancelSettingsBtn.addEventListener('click', () => {
@@ -765,35 +764,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const clearChatBtn = document.getElementById('clear-chat-btn');
-if (clearChatBtn) {
-    clearChatBtn.addEventListener('click', () => {
-        const url = clearChatBtn.dataset.url;
-        if (confirm('Tem certeza que deseja limpar todo o histórico desta conversa? Esta ação não pode ser desfeita.')) {
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'ok') {
-                    if (chatLog) {
-                        chatLog.innerHTML = ''; // Limpa o chat visualmente
-                        addSystemMessage('Histórico de mensagens limpo.');
+    if (clearChatBtn) {
+        clearChatBtn.addEventListener('click', () => {
+            const url = clearChatBtn.dataset.url;
+            showConfirmationModal('Tem certeza que deseja limpar todo o histórico desta conversa? Esta ação não pode ser desfeita.', () => {
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
                     }
-                } else {
-                    addSystemMessage(`Erro ao limpar o histórico: ${data.message}`);
-                }
-            })
-            .catch(error => {
-                console.error('Erro ao limpar o chat:', error);
-                addSystemMessage('Ocorreu um erro de comunicação ao tentar limpar o chat.');
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'ok') {
+                        if (chatLog) {
+                            chatLog.innerHTML = ''; // Limpa o chat visualmente
+                            addSystemMessage('Histórico de mensagens limpo.');
+                        }
+                    } else {
+                        addSystemMessage(`Erro ao limpar o histórico: ${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao limpar o chat:', error);
+                    addSystemMessage('Ocorreu um erro de comunicação ao tentar limpar o chat.');
+                });
             });
-        }
-    });
-}
+        });
+    }
 
     function getCookie(name) {
         let cookieValue = null;
@@ -809,3 +808,4 @@ if (clearChatBtn) {
         }
         return cookieValue;
     }
+});
