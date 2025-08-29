@@ -373,8 +373,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_count = len(self.connected_users.get(self.room_group_name, {}))
         await database_sync_to_async(cache.set)(f'chat_{self.room_slug}', user_count, timeout=None)
 
-        channel_layer = get_channel_layer()
-        await channel_layer.group_send(
+        await self.channel_layer.group_send(
             'lobby',
             {
                 'type': 'user_count_update',
