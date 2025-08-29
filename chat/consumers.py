@@ -2,6 +2,7 @@ import json
 import secrets
 from urllib.parse import parse_qs
 from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.layers import get_channel_layer
 from channels.db import database_sync_to_async
 from django.core.cache import cache
 from django.contrib.auth.models import User
@@ -10,6 +11,28 @@ from django.utils import timezone
 import logging
 
 logger = logging.getLogger(__name__)
+
+class LobbyConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.lobby_group_name = 'lobby'
+        await self.channel_layer.group_add(
+            self.lobby_group_name,
+            self.channel_name
+        )
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(
+            self.lobby_group_name,
+            self.channel_name
+        )
+
+    async def user_count_update(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'user_count_update',
+            'room_slug': event['room_slug'],
+            'user_count': event['user_count']
+        }))
 
 class ChatConsumer(AsyncWebsocketConsumer):
     connected_users = {}
@@ -27,7 +50,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         room = await self.get_room()
         
-        # Validação para salas públicas que não existem
         if room is None and not self.room_slug.startswith('dm-'):
             logger.warning(f"Sala {self.room_slug} não encontrada")
             await self.close(code=4004)
@@ -350,6 +372,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def broadcast_user_list(self):
         user_count = len(self.connected_users.get(self.room_group_name, {}))
         await database_sync_to_async(cache.set)(f'chat_{self.room_slug}', user_count, timeout=None)
+
+        channel_layer = get_channel_layer()
+        await channel_layer.group_send(
+            'lobby',
+            {
+                'type': 'user_count_update',
+                'room_slug': self.room_slug,
+                'user_count': user_count
+            }
+        )
+
         connected_usernames = list(self.connected_users.get(self.room_group_name, {}).keys())
         room = await self.get_room()
         profiles = await self.get_profiles_in_room(connected_usernames, room)
