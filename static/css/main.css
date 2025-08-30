@@ -40,7 +40,6 @@ body {
 body.modal-open {
     overflow-y: hidden;
 }
-
 .container { max-width: 1100px; width: 100%; margin: 2rem auto; padding: 0 20px; }
 
 .navbar { background-color: var(--bg-card); padding: 1rem 0; border-bottom: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.05); grid-row: 1 / 2; }
@@ -111,6 +110,7 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 .user-status { color: var(--text-secondary); font-size: 0.75rem; margin-left: auto; }
 .chat-container { flex: 3; display: flex; flex-direction: column; height: 80vh; background-color: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); }
 .chat-log { flex-grow: 1; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; }
+.chat-log.chat-log--no-scroll { overflow-y: hidden; overflow-x: hidden; }
 .chat-message { display: flex; align-items: flex-end; margin-bottom: 1rem; gap: 10px; max-width: 75%; }
 .chat-avatar { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
 .message-bubble {
@@ -316,13 +316,6 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
 }
 
 @media (max-width: 768px) {
-
-    .chat-log {
-        flex-shrink: 1;
-        flex-basis: 0;
-        overflow-y: auto;
-}
-
     .container {
         margin: 1rem auto;
         padding: 0 15px;
@@ -384,41 +377,9 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     }
 
     .chat-container {
-        height: 100%;
-        border: none;
-        border-radius: 0;
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
+        height: 80vh;
     }
 
-    .user-list-sidebar {
-        height: auto;
-        max-height: 250px;
-        overflow-y: auto;
-        margin-bottom: 1rem;
-        flex-shrink: 0;
-    }
-
-  .chat-page-container.chat-page {
-        height: 100%;
-        padding: 0;
-        display: flex; 
-        flex-direction: column;
-        flex-grow: 1;
-    }
-
-    body, html {
-        height: 100%;
-    }
-
-   main.container {
-        padding: 0;
-        height: calc(100vh - 56px);
-        display: flex;
-        flex-direction: column;
-    }
     .chat-message {
         max-width: 90%;
     }
@@ -457,10 +418,9 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     }
 
     .room-list-item {
-        display: flex;
         flex-direction: column;
         align-items: flex-start;
-        gap: 10px;
+        gap: 5px;
     }
 
     .room-meta {
@@ -471,51 +431,6 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
     .join-leave-btn {
         width: 100%;
         margin-bottom: 5px;
-    }
-
-    .chat-input-area {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .chat-input-area input {
-        margin-right: 0;
-    }
-}
-
-@media (max-width: 400px) {
-    .container {
-        padding: 0 10px;
-    }
-
-    .form-card, .content-card, .room-list-card, .create-room-card {
-        padding: 1rem;
-    }
-
-    .profile-avatar {
-        width: 120px;
-        height: 120px;
-    }
-
-    .chat-avatar {
-        width: 30px;
-        height: 30px;
-    }
-
-    .message-bubble {
-        padding: 0.6rem 0.9rem;
-    }
-
-    .chat-header {
-        padding: 0.5rem;
-    }
-
-    .dm-header-info {
-        gap: 5px;
-    }
-
-    .dm-username {
-        font-size: 0.9rem;
     }
 }
 
