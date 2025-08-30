@@ -398,10 +398,6 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
         padding: 0;
     }
 
-    .lobby-container {
-        overflow-y: auto;
-    }
-
     .chat-message {
         max-width: 90%;
     }
