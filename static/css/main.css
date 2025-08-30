@@ -387,9 +387,18 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
         height: 100%;
         border: none;
         border-radius: 0;
+        flex-grow: 1;
         display: flex;
         flex-direction: column;
-        flex-grow: 1;
+        min-height: 0;
+    }
+
+    .user-list-sidebar {
+        height: auto;
+        max-height: 250px;
+        overflow-y: auto;
+        margin-bottom: 1rem;
+        flex-shrink: 0;
     }
 
   .chat-page-container.chat-page {
