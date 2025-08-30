@@ -6,7 +6,7 @@
 {% block extra_head %}{% endblock %}
 
 {% block content %}
-<div class="chat-page-container {% if is_dm %}dm-container{% endif %}"> 
+<div class="chat-page-container chat-page {% if is_dm %}dm-container{% endif %}"> 
     {% if not is_dm %}
     <div class="user-list-sidebar">
         <h4>Usuários na Sala</h4>

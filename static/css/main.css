@@ -383,19 +383,22 @@ input[type="file"]::file-selector-button { background-color: #e4e6eb; color: #05
         border-radius: 0;
     }
 
-    .chat-page-container {
+    .chat-page-container.chat-page {
         height: 100%;
         padding: 0;
+        overflow: hidden;
     }
 
     body, html {
         height: 100%;
-        overflow: hidden;
     }
 
     main.container {
         height: calc(100% - 56px); /* 56px is the navbar height */
         padding: 0;
+    }
+
+    .lobby-container {
         overflow-y: auto;
     }
 
