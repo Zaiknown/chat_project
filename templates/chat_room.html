@@ -141,5 +141,12 @@
 {% endblock %}
 
 {% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.innerWidth <= 768) {
+                document.body.classList.add('no-scroll');
+            }
+        });
+    </script>
     <script src="{% static 'js/chat.js' %}?v=2.2"></script> 
 {% endblock %}
